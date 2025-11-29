@@ -23,7 +23,7 @@ function Dashboard() {
 
   useEffect(() => {
     fetchData()
-    fetchConnectors()
+    fetchConnections()
     fetchTeams()
     const interval = setInterval(fetchData, 30000)
     return () => clearInterval(interval)
@@ -53,13 +53,13 @@ function Dashboard() {
     }
   }
 
-  const fetchConnectors = async () => {
+  const fetchConnections = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/connectors`)
+      const response = await fetch(`${API_URL}/api/connections`)
       const data = await response.json()
-      setConnectors(data)
+      setConnectors(data)  // Keep using setConnectors to avoid changing all references
     } catch (err) {
-      console.error('Failed to fetch connectors:', err)
+      console.error('Failed to fetch connections:', err)
     }
   }
 

@@ -1,12 +1,27 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, JSON, ForeignKey
 from sqlalchemy.sql import func
 from .database import Base
+
+
+class Connection(Base):
+    __tablename__ = "connections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    type = Column(String(50), nullable=False, index=True)
+    config = Column(JSON, nullable=False)
+    enabled = Column(Boolean, default=True, index=True)
+    tags = Column(String)  # Comma-separated tags
+    last_sync = Column(DateTime)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
 class ChangeEvent(Base):
     __tablename__ = "change_events"
 
     id = Column(Integer, primary_key=True, index=True)
+    connection_id = Column(Integer, ForeignKey('connections.id', ondelete='CASCADE'), index=True)
     source = Column(String(50), nullable=False, index=True)
     event_id = Column(String(255), nullable=False)
     title = Column(Text, nullable=False)
@@ -17,19 +32,6 @@ class ChangeEvent(Base):
     status = Column(String(50), nullable=False, index=True)
     event_metadata = Column("metadata", JSON)  # Use different attribute name
     created_at = Column(DateTime, server_default=func.now())
-
-
-class Connector(Base):
-    __tablename__ = "connectors"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False, unique=True)
-    type = Column(String(50), nullable=False, index=True)
-    config = Column(JSON, nullable=False)
-    enabled = Column(Boolean, default=True, index=True)
-    last_sync = Column(DateTime)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
 class Team(Base):

@@ -9,20 +9,30 @@ const connectorLogos = {
   github: githubLogo,
 }
 
+const CONNECTOR_TYPES = [
+  { id: 'github', name: 'GitHub' },
+  { id: 'jira', name: 'Jira' },
+  { id: 'gitlab', name: 'GitLab' },
+]
+
 function Settings() {
   const navigate = useNavigate()
-  const [activeMenu, setActiveMenu] = useState('connectors')
-  const [connectors, setConnectors] = useState([])
-  const [selectedConnector, setSelectedConnector] = useState(null)
+  const [activeMenu, setActiveMenu] = useState('connections')
+  const [connections, setConnections] = useState([])
+  const [selectedConnection, setSelectedConnection] = useState(null)
   const [teams, setTeams] = useState([])
   const [selectedTeam, setSelectedTeam] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [creatingNew, setCreatingNew] = useState(false)
+  const [newConnectionType, setNewConnectionType] = useState('')
   const [config, setConfig] = useState({
+    name: '',
     enabled: false,
     token: '',
     pollInterval: '300',
     repos: '',
+    branches: '',
     tags: ''
   })
   const [teamConfig, setTeamConfig] = useState({
@@ -31,24 +41,26 @@ function Settings() {
   })
 
   useEffect(() => {
-    if (activeMenu === 'connectors') {
-      fetchConnectors()
+    if (activeMenu === 'connections') {
+      fetchConnections()
     } else if (activeMenu === 'teams') {
       fetchTeams()
     }
   }, [activeMenu])
 
   useEffect(() => {
-    if (selectedConnector) {
+    if (selectedConnection) {
       setConfig({
-        enabled: selectedConnector.enabled || false,
-        token: selectedConnector.config?.token || '',
-        pollInterval: selectedConnector.config?.poll_interval || '300',
-        repos: selectedConnector.config?.repos || '',
-        tags: selectedConnector.config?.tags || ''
+        name: selectedConnection.name || '',
+        enabled: selectedConnection.enabled || false,
+        token: selectedConnection.config?.token || '',
+        pollInterval: selectedConnection.config?.poll_interval || '300',
+        repos: selectedConnection.config?.repos || '',
+        branches: selectedConnection.config?.branches || '',
+        tags: selectedConnection.tags || ''
       })
     }
-  }, [selectedConnector])
+  }, [selectedConnection])
 
   useEffect(() => {
     if (selectedTeam) {
@@ -59,20 +71,15 @@ function Settings() {
     }
   }, [selectedTeam])
 
-  const fetchConnectors = async () => {
+  const fetchConnections = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`${API_URL}/api/connectors`)
+      const response = await fetch(`${API_URL}/api/connections`)
       const data = await response.json()
-      setConnectors(data)
+      setConnections(data)
     } catch (err) {
-      console.error('Failed to fetch connectors:', err)
-      // Fallback to default connectors if API fails
-      setConnectors([
-        { id: 'github', name: 'GitHub', enabled: false, type: 'github' },
-        { id: 'jira', name: 'Jira', enabled: false, type: 'jira' },
-        { id: 'gitlab', name: 'GitLab', enabled: false, type: 'gitlab' },
-      ])
+      console.error('Failed to fetch connections:', err)
+      setConnections([])
     } finally {
       setLoading(false)
     }
@@ -92,38 +99,138 @@ function Settings() {
     }
   }
 
-  const handleSave = async () => {
-    if (!selectedConnector) return
-
+  const handleToggleEnabled = async (connection, enabled) => {
     try {
-      setSaving(true)
-      const response = await fetch(`${API_URL}/api/connectors/${selectedConnector.id}`, {
+      const response = await fetch(`${API_URL}/api/connections/${connection.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          enabled: config.enabled,
-          config: {
-            token: config.token,
-            poll_interval: parseInt(config.pollInterval),
-            repos: config.repos,
-            tags: config.tags
-          }
+          name: connection.name,
+          enabled: enabled,
+          config: connection.config,
+          tags: connection.tags
         })
       })
 
       if (response.ok) {
-        await fetchConnectors()
-        alert('Configuration saved successfully!')
+        const updatedConnection = await response.json()
+
+        // Update the connections list
+        await fetchConnections()
+
+        // Update the selected connection if it's currently open
+        if (selectedConnection && selectedConnection.id === connection.id) {
+          setSelectedConnection({...selectedConnection, enabled: enabled})
+        }
       } else {
-        alert('Failed to save configuration')
+        alert('Failed to update connection')
       }
     } catch (err) {
-      console.error('Failed to save connector config:', err)
+      console.error('Failed to toggle connection:', err)
+      alert('Failed to update connection')
+    }
+  }
+
+  const handleSave = async () => {
+    if (!selectedConnection && !creatingNew) return
+
+    try {
+      setSaving(true)
+
+      if (creatingNew) {
+        // Create new connection
+        const response = await fetch(`${API_URL}/api/connections`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: config.name,
+            type: newConnectionType,
+            enabled: config.enabled,
+            config: {
+              token: config.token,
+              poll_interval: parseInt(config.pollInterval),
+              repos: config.repos,
+              branches: config.branches
+            },
+            tags: config.tags
+          })
+        })
+
+        if (response.ok) {
+          await fetchConnections()
+          setCreatingNew(false)
+          setNewConnectionType('')
+          setConfig({
+            name: '',
+            enabled: false,
+            token: '',
+            pollInterval: '300',
+            repos: '',
+            branches: '',
+            tags: ''
+          })
+          alert('Connection created successfully!')
+        } else {
+          alert('Failed to create connection')
+        }
+      } else {
+        // Update existing connection (enabled state is managed by toggle in list)
+        const response = await fetch(`${API_URL}/api/connections/${selectedConnection.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: config.name,
+            enabled: selectedConnection.enabled, // Keep existing enabled state
+            config: {
+              token: config.token,
+              poll_interval: parseInt(config.pollInterval),
+              repos: config.repos,
+              branches: config.branches
+            },
+            tags: config.tags
+          })
+        })
+
+        if (response.ok) {
+          await fetchConnections()
+          alert('Configuration saved successfully!')
+        } else {
+          alert('Failed to save configuration')
+        }
+      }
+    } catch (err) {
+      console.error('Failed to save connection:', err)
       alert('Failed to save configuration')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!selectedConnection) return
+    if (!confirm('Are you sure you want to delete this connection?')) return
+
+    try {
+      const response = await fetch(`${API_URL}/api/connections/${selectedConnection.id}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        await fetchConnections()
+        setSelectedConnection(null)
+        alert('Connection deleted successfully!')
+      } else {
+        alert('Failed to delete connection')
+      }
+    } catch (err) {
+      console.error('Failed to delete connection:', err)
+      alert('Failed to delete connection')
     }
   }
 
@@ -200,6 +307,31 @@ function Settings() {
     }
   }
 
+  const handleCreateNew = (type) => {
+    setCreatingNew(true)
+    setNewConnectionType(type)
+    setSelectedConnection(null)
+    setConfig({
+      name: '',
+      enabled: false,
+      token: '',
+      pollInterval: '300',
+      repos: '',
+      branches: '',
+      tags: ''
+    })
+  }
+
+  const groupConnectionsByType = () => {
+    const grouped = {}
+    CONNECTOR_TYPES.forEach(type => {
+      const typeConnections = connections.filter(c => c.type === type.id)
+      // Sort alphabetically by name
+      grouped[type.id] = typeConnections.sort((a, b) => a.name.localeCompare(b.name))
+    })
+    return grouped
+  }
+
   return (
     <div className="settings-page">
       <div className="settings-page-header">
@@ -215,21 +347,23 @@ function Settings() {
             <h3>CONFIGURATION</h3>
             <div className="settings-menu">
               <div
-                className={`menu-item ${activeMenu === 'connectors' ? 'active' : ''}`}
+                className={`menu-item ${activeMenu === 'connections' ? 'active' : ''}`}
                 onClick={() => {
-                  setActiveMenu('connectors')
-                  setSelectedConnector(null)
+                  setActiveMenu('connections')
+                  setSelectedConnection(null)
                   setSelectedTeam(null)
+                  setCreatingNew(false)
                 }}
               >
-                Connectors
+                Connections
               </div>
               <div
                 className={`menu-item ${activeMenu === 'teams' ? 'active' : ''}`}
                 onClick={() => {
                   setActiveMenu('teams')
-                  setSelectedConnector(null)
+                  setSelectedConnection(null)
                   setSelectedTeam(null)
+                  setCreatingNew(false)
                 }}
               >
                 Teams
@@ -239,69 +373,94 @@ function Settings() {
         </div>
 
         <div className="settings-main">
-          {activeMenu === 'connectors' ? (
+          {activeMenu === 'connections' ? (
             <>
               <div className="settings-main-header">
-                <h2>Connectors</h2>
-                <p>Configure your data source connectors</p>
+                <h2>Connections</h2>
+                <p>Configure your data source connections</p>
               </div>
 
           {loading ? (
-            <p>Loading connectors...</p>
+            <p>Loading connections...</p>
           ) : (
-            <div className="connector-list">
-              {connectors.map((connector) => (
-                <div
-                  key={connector.id}
-                  className={`connector-item ${selectedConnector?.id === connector.id ? 'selected' : ''}`}
-                  onClick={() => setSelectedConnector(connector)}
-                >
-                  <div className="connector-info">
-                    <div className="connector-icon">
-                      {connectorLogos[connector.id] && (
-                        <img src={connectorLogos[connector.id]} alt={connector.name} />
-                      )}
+            <>
+              {CONNECTOR_TYPES.map(connectorType => {
+                const typeConnections = groupConnectionsByType()[connectorType.id]
+                return (
+                  <div key={connectorType.id} className="connector-type-group">
+                    <div className="connector-type-header">
+                      <div className="connector-type-info">
+                        {connectorLogos[connectorType.id] && (
+                          <img src={connectorLogos[connectorType.id]} alt={connectorType.name} className="connector-type-logo" />
+                        )}
+                        <h3>{connectorType.name}</h3>
+                      </div>
+                      <button className="btn-add-connection" onClick={() => handleCreateNew(connectorType.id)}>
+                        + Add Connection
+                      </button>
                     </div>
-                    <span className="connector-name">{connector.name}</span>
-                  </div>
-                  <div className="connector-status">
-                    {connector.enabled ? (
-                      <span className="status-enabled">Enabled</span>
-                    ) : (
-                      <span className="status-disabled">Disabled</span>
+                    {typeConnections.length > 0 && (
+                      <div className="connection-list">
+                        {typeConnections.map((connection) => (
+                          <div
+                            key={connection.id}
+                            className={`connector-item ${selectedConnection?.id === connection.id ? 'selected' : ''}`}
+                          >
+                            <div className="connector-info">
+                              <span className="connector-name">{connection.name}</span>
+                            </div>
+                            <div className="connector-status">
+                              <span className={connection.enabled ? "status-enabled-mini" : "status-disabled-mini"}>
+                                {connection.enabled ? "Enabled" : "Disabled"}
+                              </span>
+                              <button
+                                className="btn-edit-connection"
+                                onClick={() => { setSelectedConnection(connection); setCreatingNew(false); }}
+                              >
+                                Edit
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     )}
-                    <span className="arrow">›</span>
                   </div>
-                </div>
-              ))}
-            </div>
+                )
+              })}
+            </>
           )}
 
-        {selectedConnector && (
+        {(selectedConnection || creatingNew) && (
           <div className="settings-detail">
             <div className="detail-header">
-              <button className="back-btn" onClick={() => setSelectedConnector(null)}>×</button>
-              <h3>{selectedConnector.name}</h3>
-            </div>
-            <div className="detail-content">
-              <div className="toggle-group">
-                <div className="toggle-item">
-                  <div className="toggle-info">
-                    <h4>Enable {selectedConnector.name}</h4>
-                    <p>Activate this connector to start syncing data</p>
-                  </div>
-                  <label className="toggle">
+              <button className="back-btn" onClick={() => { setSelectedConnection(null); setCreatingNew(false); }}>×</button>
+              <div className="detail-header-content">
+                <h3>{creatingNew ? `New ${CONNECTOR_TYPES.find(t => t.id === newConnectionType)?.name} Connection` : selectedConnection.name}</h3>
+                {!creatingNew && selectedConnection && (
+                  <label className="toggle-inline-header" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
-                      checked={config.enabled}
-                      onChange={(e) => setConfig({...config, enabled: e.target.checked})}
+                      checked={selectedConnection.enabled}
+                      onChange={(e) => handleToggleEnabled(selectedConnection, e.target.checked)}
                     />
-                    <span className="toggle-slider"></span>
+                    <span className="toggle-slider-inline"></span>
                   </label>
-                </div>
+                )}
               </div>
+            </div>
+            <div className="detail-content">
               <div className="config-section">
                 <h4>Configuration</h4>
+                <div className="form-group">
+                  <label>Connection Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Personal GitHub, Work Repos"
+                    className="form-input"
+                    value={config.name}
+                    onChange={(e) => setConfig({...config, name: e.target.value})}
+                  />
+                </div>
                 <div className="form-group">
                   <label>Token</label>
                   <input
@@ -334,6 +493,17 @@ function Settings() {
                   <span className="form-help">Comma-separated list. Leave empty for all repos.</span>
                 </div>
                 <div className="form-group">
+                  <label>Branches</label>
+                  <input
+                    type="text"
+                    placeholder="main,develop,staging"
+                    className="form-input"
+                    value={config.branches}
+                    onChange={(e) => setConfig({...config, branches: e.target.value})}
+                  />
+                  <span className="form-help">Comma-separated branch names to track commits from.</span>
+                </div>
+                <div className="form-group">
                   <label>Tags</label>
                   <input
                     type="text"
@@ -349,10 +519,19 @@ function Settings() {
                 <button
                   className="btn-save"
                   onClick={handleSave}
-                  disabled={saving}
+                  disabled={saving || !config.name}
                 >
-                  {saving ? 'Saving...' : 'Save Changes'}
+                  {saving ? 'Saving...' : (creatingNew ? 'Create Connection' : 'Save Changes')}
                 </button>
+                {selectedConnection && (
+                  <button
+                    className="btn-delete"
+                    onClick={handleDelete}
+                    style={{ marginTop: '8px' }}
+                  >
+                    Delete Connection
+                  </button>
+                )}
               </div>
             </div>
           </div>

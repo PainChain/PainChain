@@ -7,18 +7,27 @@ from pydantic import BaseModel
 import sys
 sys.path.insert(0, '/app')
 
-from shared import get_db, ChangeEvent, Connector, Team
+from shared import get_db, ChangeEvent, Connection, Team
 
 # Pydantic models for request/response
-class ConnectorConfig(BaseModel):
+class ConnectionConfig(BaseModel):
     token: str = ""
     poll_interval: int = 300
     repos: str = ""
+    branches: str = ""
+
+class ConnectionCreate(BaseModel):
+    name: str
+    type: str
+    enabled: bool = False
+    config: ConnectionConfig
     tags: str = ""
 
-class ConnectorUpdate(BaseModel):
+class ConnectionUpdate(BaseModel):
+    name: str
     enabled: bool
-    config: ConnectorConfig
+    config: ConnectionConfig
+    tags: str = ""
 
 class TeamCreate(BaseModel):
     name: str
@@ -113,103 +122,140 @@ async def get_change(event_id: int, db: Session = Depends(get_db)):
     }
 
 
-@app.get("/api/connectors")
-async def get_connectors(db: Session = Depends(get_db)):
-    """Get all configured connectors"""
-    connectors = db.query(Connector).all()
-
-    # If no connectors exist, seed with defaults
-    if not connectors:
-        default_connectors = [
-            Connector(name="GitHub", type="github", enabled=False, config={"token": "", "poll_interval": 300, "repos": ""}),
-            Connector(name="Jira", type="jira", enabled=False, config={"token": "", "poll_interval": 300, "repos": ""}),
-            Connector(name="GitLab", type="gitlab", enabled=False, config={"token": "", "poll_interval": 300, "repos": ""}),
-        ]
-        db.add_all(default_connectors)
-        db.commit()
-        connectors = db.query(Connector).all()
+@app.get("/api/connections")
+async def get_connections(db: Session = Depends(get_db)):
+    """Get all configured connections"""
+    connections = db.query(Connection).all()
 
     return [
         {
-            "id": c.type,  # Use type as ID for frontend compatibility
+            "id": c.id,
             "name": c.name,
             "type": c.type,
             "enabled": c.enabled,
             "config": c.config,
+            "tags": c.tags or "",
             "last_sync": c.last_sync.isoformat() if c.last_sync else None,
             "created_at": c.created_at.isoformat() if c.created_at else None
         }
-        for c in connectors
+        for c in connections
     ]
 
 
-@app.get("/api/connectors/{connector_id}")
-async def get_connector(connector_id: str, db: Session = Depends(get_db)):
-    """Get a specific connector by type"""
-    connector = db.query(Connector).filter(Connector.type == connector_id).first()
+@app.get("/api/connections/{connection_id}")
+async def get_connection(connection_id: int, db: Session = Depends(get_db)):
+    """Get a specific connection by ID"""
+    connection = db.query(Connection).filter(Connection.id == connection_id).first()
 
-    if not connector:
-        raise HTTPException(status_code=404, detail="Connector not found")
+    if not connection:
+        raise HTTPException(status_code=404, detail="Connection not found")
 
     return {
-        "id": connector.type,
-        "name": connector.name,
-        "type": connector.type,
-        "enabled": connector.enabled,
-        "config": connector.config,
-        "last_sync": connector.last_sync.isoformat() if connector.last_sync else None,
-        "created_at": connector.created_at.isoformat() if connector.created_at else None
+        "id": connection.id,
+        "name": connection.name,
+        "type": connection.type,
+        "enabled": connection.enabled,
+        "config": connection.config,
+        "tags": connection.tags or "",
+        "last_sync": connection.last_sync.isoformat() if connection.last_sync else None,
+        "created_at": connection.created_at.isoformat() if connection.created_at else None
     }
 
 
-@app.put("/api/connectors/{connector_id}")
-async def update_connector(
-    connector_id: str,
-    update: ConnectorUpdate,
+@app.post("/api/connections")
+async def create_connection(
+    connection_data: ConnectionCreate,
     db: Session = Depends(get_db)
 ):
-    """Update connector configuration"""
-    connector = db.query(Connector).filter(Connector.type == connector_id).first()
+    """Create a new connection"""
+    connection = Connection(
+        name=connection_data.name,
+        type=connection_data.type,
+        enabled=connection_data.enabled,
+        config=connection_data.config.dict(),
+        tags=connection_data.tags
+    )
 
-    if not connector:
-        raise HTTPException(status_code=404, detail="Connector not found")
-
-    # Update connector
-    connector.enabled = update.enabled
-    connector.config = update.config.dict()
-
+    db.add(connection)
     db.commit()
-    db.refresh(connector)
+    db.refresh(connection)
 
     return {
-        "id": connector.type,
-        "name": connector.name,
-        "type": connector.type,
-        "enabled": connector.enabled,
-        "config": connector.config,
-        "message": "Connector updated successfully"
+        "id": connection.id,
+        "name": connection.name,
+        "type": connection.type,
+        "enabled": connection.enabled,
+        "config": connection.config,
+        "tags": connection.tags,
+        "message": "Connection created successfully"
     }
 
 
-@app.post("/api/connectors/{connector_id}/sync")
-async def trigger_sync(connector_id: str, db: Session = Depends(get_db)):
-    """Manually trigger a connector sync"""
-    connector = db.query(Connector).filter(Connector.type == connector_id).first()
+@app.put("/api/connections/{connection_id}")
+async def update_connection(
+    connection_id: int,
+    update: ConnectionUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update connection configuration"""
+    connection = db.query(Connection).filter(Connection.id == connection_id).first()
 
-    if not connector:
-        raise HTTPException(status_code=404, detail="Connector not found")
+    if not connection:
+        raise HTTPException(status_code=404, detail="Connection not found")
 
-    if not connector.enabled:
-        raise HTTPException(status_code=400, detail="Connector is disabled")
+    # Update connection
+    connection.name = update.name
+    connection.enabled = update.enabled
+    connection.config = update.config.dict()
+    connection.tags = update.tags
+
+    db.commit()
+    db.refresh(connection)
+
+    return {
+        "id": connection.id,
+        "name": connection.name,
+        "type": connection.type,
+        "enabled": connection.enabled,
+        "config": connection.config,
+        "tags": connection.tags,
+        "message": "Connection updated successfully"
+    }
+
+
+@app.delete("/api/connections/{connection_id}")
+async def delete_connection(connection_id: int, db: Session = Depends(get_db)):
+    """Delete a connection"""
+    connection = db.query(Connection).filter(Connection.id == connection_id).first()
+
+    if not connection:
+        raise HTTPException(status_code=404, detail="Connection not found")
+
+    db.delete(connection)
+    db.commit()
+
+    return {"message": "Connection deleted successfully"}
+
+
+@app.post("/api/connections/{connection_id}/sync")
+async def trigger_sync(connection_id: int, db: Session = Depends(get_db)):
+    """Manually trigger a connection sync"""
+    connection = db.query(Connection).filter(Connection.id == connection_id).first()
+
+    if not connection:
+        raise HTTPException(status_code=404, detail="Connection not found")
+
+    if not connection.enabled:
+        raise HTTPException(status_code=400, detail="Connection is disabled")
 
     # Import celery task
     try:
-        from tasks import poll_connector
-        task = poll_connector.delay(connector_id)
+        from tasks import poll_connection
+        task = poll_connection.delay(connection_id)
         return {
-            "message": f"Sync triggered for {connector.name}",
+            "message": f"Sync triggered for {connection.name}",
             "task_id": task.id,
-            "connector": connector_id
+            "connection_id": connection_id
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to trigger sync: {str(e)}")

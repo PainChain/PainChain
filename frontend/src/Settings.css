@@ -444,3 +444,237 @@
     position: relative;
   }
 }
+
+/* Connector Type Groups */
+.connector-type-group {
+  margin-bottom: 32px;
+}
+
+.connector-type-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #2a3142;
+}
+
+.connector-type-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.connector-type-logo {
+  width: 24px;
+  height: 24px;
+}
+
+.connector-type-info h3 {
+  margin: 0;
+  font-size: 1.1em;
+  color: #e6e6e6;
+}
+
+.btn-add-connection {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid #00E8A0;
+  color: #00E8A0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-add-connection:hover {
+  background: rgba(0, 232, 160, 0.1);
+}
+
+.connection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Inline Toggle in Connection List */
+.toggle-inline {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.toggle-inline input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider-inline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #2a3142;
+  border: 1px solid #3a4152;
+  border-radius: 24px;
+  transition: all 0.3s;
+}
+
+.toggle-slider-inline:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #808080;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.toggle-inline input:checked + .toggle-slider-inline {
+  background-color: rgba(0, 232, 160, 0.2);
+  border-color: #00E8A0;
+}
+
+.toggle-inline input:checked + .toggle-slider-inline:before {
+  transform: translateX(20px);
+  background-color: #00E8A0;
+}
+
+.toggle-inline:hover .toggle-slider-inline {
+  border-color: #00E8A0;
+}
+
+.connector-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Edit Button in Connection List */
+.btn-edit-connection {
+  padding: 6px 16px;
+  background: transparent;
+  border: 1px solid #2a3142;
+  color: #e6e6e6;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-edit-connection:hover {
+  border-color: #00E8A0;
+  color: #00E8A0;
+  background: rgba(0, 232, 160, 0.05);
+}
+
+/* Mini Status Badges */
+.status-enabled-mini,
+.status-disabled-mini {
+  font-size: 0.75em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-right: 8px;
+}
+
+.status-enabled-mini {
+  background: rgba(0, 232, 160, 0.15);
+  color: #00E8A0;
+}
+
+.status-disabled-mini {
+  background: rgba(128, 128, 128, 0.15);
+  color: #808080;
+}
+
+.connector-info {
+  display: flex;
+  align-items: center;
+}
+
+.connector-status {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+/* Detail Header with Toggle */
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  border-bottom: 1px solid #2a3142;
+}
+
+.detail-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+}
+
+.detail-header-content h3 {
+  margin: 0;
+}
+
+.toggle-inline-header {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggle-inline-header input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-inline-header .toggle-slider-inline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #2a3142;
+  border: 1px solid #3a4152;
+  border-radius: 24px;
+  transition: all 0.3s;
+}
+
+.toggle-inline-header .toggle-slider-inline:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #808080;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.toggle-inline-header input:checked + .toggle-slider-inline {
+  background-color: rgba(0, 232, 160, 0.2);
+  border-color: #00E8A0;
+}
+
+.toggle-inline-header input:checked + .toggle-slider-inline:before {
+  transform: translateX(20px);
+  background-color: #00E8A0;
+}
+
+.toggle-inline-header:hover .toggle-slider-inline {
+  border-color: #00E8A0;
+}

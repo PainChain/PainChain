@@ -2,7 +2,7 @@ import sys
 sys.path.insert(0, '/app')
 
 from celery_app import celery_app
-from shared import get_db, Connector, ChangeEvent
+from shared import get_db, Connection, ChangeEvent
 from datetime import datetime
 from sqlalchemy.orm import Session
 import importlib
@@ -22,80 +22,81 @@ def get_connector_module(connector_type: str):
         return None
 
 
-@celery_app.task(name='tasks.poll_connector')
-def poll_connector(connector_type: str):
-    """Poll a specific connector for changes"""
-    logger.info(f"Polling connector: {connector_type}")
+@celery_app.task(name='tasks.poll_connection')
+def poll_connection(connection_id: int):
+    """Poll a specific connection for changes"""
+    logger.info(f"Polling connection ID: {connection_id}")
 
     # Get database session
     db = next(get_db())
 
     try:
-        # Get connector config from database
-        connector = db.query(Connector).filter(
-            Connector.type == connector_type,
-            Connector.enabled == True
+        # Get connection config from database
+        connection = db.query(Connection).filter(
+            Connection.id == connection_id,
+            Connection.enabled == True
         ).first()
 
-        if not connector:
-            logger.warning(f"Connector {connector_type} not found or disabled")
+        if not connection:
+            logger.warning(f"Connection {connection_id} not found or disabled")
             return {"status": "skipped", "reason": "disabled or not found"}
 
         # Get connector module
-        connector_module = get_connector_module(connector_type)
+        connector_module = get_connector_module(connection.type)
         if not connector_module:
-            logger.error(f"Failed to load connector module for {connector_type}")
+            logger.error(f"Failed to load connector module for {connection.type}")
             return {"status": "error", "reason": "module not found"}
 
         # Get connector function (e.g., sync_github)
-        sync_func_name = f"sync_{connector_type}"
+        sync_func_name = f"sync_{connection.type}"
         if not hasattr(connector_module, sync_func_name):
-            logger.error(f"Connector module {connector_type} missing {sync_func_name} function")
+            logger.error(f"Connector module {connection.type} missing {sync_func_name} function")
             return {"status": "error", "reason": "sync function not found"}
 
         sync_func = getattr(connector_module, sync_func_name)
 
-        # Execute sync
-        result = sync_func(db, connector.config)
+        # Execute sync with connection_id
+        result = sync_func(db, connection.config, connection.id)
 
         # Update last_sync timestamp
-        connector.last_sync = datetime.utcnow()
+        connection.last_sync = datetime.utcnow()
         db.commit()
 
-        logger.info(f"Successfully polled {connector_type}: {result}")
+        logger.info(f"Successfully polled connection {connection_id} ({connection.name}): {result}")
         return {"status": "success", "result": result}
 
     except Exception as e:
-        logger.error(f"Error polling {connector_type}: {e}")
+        logger.error(f"Error polling connection {connection_id}: {e}")
         return {"status": "error", "error": str(e)}
     finally:
         db.close()
 
 
-@celery_app.task(name='tasks.sync_all_connectors')
-def sync_all_connectors():
-    """Sync all enabled connectors"""
-    logger.info("Syncing all enabled connectors")
+@celery_app.task(name='tasks.sync_all_connections')
+def sync_all_connections():
+    """Sync all enabled connections"""
+    logger.info("Syncing all enabled connections")
 
     db = next(get_db())
 
     try:
-        # Get all enabled connectors
-        connectors = db.query(Connector).filter(Connector.enabled == True).all()
+        # Get all enabled connections
+        connections = db.query(Connection).filter(Connection.enabled == True).all()
 
         results = []
-        for connector in connectors:
-            logger.info(f"Triggering sync for {connector.type}")
-            result = poll_connector.delay(connector.type)
+        for connection in connections:
+            logger.info(f"Triggering sync for connection {connection.id} ({connection.name})")
+            result = poll_connection.delay(connection.id)
             results.append({
-                "connector": connector.type,
+                "connection_id": connection.id,
+                "connection_name": connection.name,
                 "task_id": result.id
             })
 
         return {"status": "success", "triggered": len(results), "tasks": results}
 
     except Exception as e:
-        logger.error(f"Error syncing all connectors: {e}")
+        logger.error(f"Error syncing all connections: {e}")
         return {"status": "error", "error": str(e)}
     finally:
         db.close()

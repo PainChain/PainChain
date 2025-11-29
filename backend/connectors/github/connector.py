@@ -57,8 +57,8 @@ class GitHubConnector:
                     print(f"Fetching from {repo.full_name}...")
 
                     # Fetch pull requests
-                    prs = repo.get_pulls(state='all', sort='updated', direction='desc')
-                    for pr in list(prs[:limit]):
+                    prs = list(repo.get_pulls(state='all', sort='updated', direction='desc'))
+                    for pr in prs[:limit]:
                         total_fetched += 1
 
                         event_id = f"pr-{repo.full_name}-{pr.number}"
@@ -99,8 +99,8 @@ class GitHubConnector:
                             total_stored += 1
 
                     # Fetch releases
-                    releases = repo.get_releases()
-                    for release in list(releases[:limit]):
+                    releases = list(repo.get_releases())
+                    for release in releases[:limit]:
                         total_fetched += 1
 
                         event_id = f"release-{repo.full_name}-{release.id}"
@@ -153,25 +153,30 @@ class GitHubConnector:
             db.close()
 
 
-def sync_github(db_session, config: Dict[str, Any]) -> Dict[str, Any]:
+def sync_github(db_session, config: Dict[str, Any], connection_id: int) -> Dict[str, Any]:
     """
     Sync GitHub changes using provided config and database session
 
     Args:
         db_session: SQLAlchemy database session
-        config: Configuration dict with keys: token, repos, poll_interval
+        config: Configuration dict with keys: token, repos, poll_interval, branches
+        connection_id: ID of the connection this sync belongs to
 
     Returns:
         Dict with sync results
     """
     token = config.get('token', '')
     repos_str = config.get('repos', '')
+    branches_str = config.get('branches', '')
 
     if not token:
         return {"error": "No GitHub token configured"}
 
     # Parse repos list
     repos = [r.strip() for r in repos_str.split(',') if r.strip()] if repos_str else []
+
+    # Parse branches list
+    branches = [b.strip() for b in branches_str.split(',') if b.strip()] if branches_str else []
 
     # Create connector and sync
     connector = GitHubConnector(token=token, repos=repos)
@@ -208,13 +213,13 @@ def sync_github(db_session, config: Dict[str, Any]) -> Dict[str, Any]:
                     print(f"Fetching from {repo.full_name}...")
 
                     # Fetch pull requests
-                    prs = repo.get_pulls(state='all', sort='updated', direction='desc')
-                    for pr in list(prs[:limit]):
+                    prs = list(repo.get_pulls(state='all', sort='updated', direction='desc'))
+                    for pr in prs[:limit]:
                         total_fetched += 1
                         event_id = f"pr-{repo.full_name}-{pr.number}"
 
                         existing = db_session.query(ChangeEvent).filter(
-                            ChangeEvent.source == "github",
+                            ChangeEvent.connection_id == connection_id,
                             ChangeEvent.event_id == event_id
                         ).first()
 
@@ -226,6 +231,7 @@ def sync_github(db_session, config: Dict[str, Any]) -> Dict[str, Any]:
                             }
 
                             db_event = ChangeEvent(
+                                connection_id=connection_id,
                                 source="github",
                                 event_id=event_id,
                                 title=f"[PR] {pr.title}",
@@ -248,13 +254,13 @@ def sync_github(db_session, config: Dict[str, Any]) -> Dict[str, Any]:
                             total_stored += 1
 
                     # Fetch releases
-                    releases = repo.get_releases()
-                    for release in list(releases[:limit]):
+                    releases = list(repo.get_releases())
+                    for release in releases[:limit]:
                         total_fetched += 1
                         event_id = f"release-{repo.full_name}-{release.id}"
 
                         existing = db_session.query(ChangeEvent).filter(
-                            ChangeEvent.source == "github",
+                            ChangeEvent.connection_id == connection_id,
                             ChangeEvent.event_id == event_id
                         ).first()
 
@@ -266,6 +272,7 @@ def sync_github(db_session, config: Dict[str, Any]) -> Dict[str, Any]:
                             }
 
                             db_event = ChangeEvent(
+                                connection_id=connection_id,
                                 source="github",
                                 event_id=event_id,
                                 title=f"[Release] {release.title or release.tag_name}",
@@ -283,6 +290,54 @@ def sync_github(db_session, config: Dict[str, Any]) -> Dict[str, Any]:
                             )
                             db_session.add(db_event)
                             total_stored += 1
+
+                    # Fetch commits from branches
+                    if branches:
+                        for branch_name in branches:
+                            try:
+                                branch = repo.get_branch(branch_name)
+                                commits = list(repo.get_commits(sha=branch.commit.sha))[:limit]
+
+                                for commit in commits:
+                                    total_fetched += 1
+                                    event_id = f"commit-{repo.full_name}-{commit.sha}"
+
+                                    existing = db_session.query(ChangeEvent).filter(
+                                        ChangeEvent.connection_id == connection_id,
+                                        ChangeEvent.event_id == event_id
+                                    ).first()
+
+                                    if not existing:
+                                        description = {
+                                            "text": commit.commit.message,
+                                            "labels": [],
+                                            "related_events": []
+                                        }
+
+                                        db_event = ChangeEvent(
+                                            connection_id=connection_id,
+                                            source="github",
+                                            event_id=event_id,
+                                            title=f"[Commit] {commit.commit.message.split(chr(10))[0][:100]}",
+                                            description=description,
+                                            author=commit.commit.author.name if commit.commit.author else "unknown",
+                                            timestamp=commit.commit.author.date.replace(tzinfo=timezone.utc) if commit.commit.author.date and commit.commit.author.date.tzinfo is None else (commit.commit.author.date or datetime.now(timezone.utc)),
+                                            url=commit.html_url,
+                                            status="committed",
+                                            event_metadata={
+                                                "repository": repo.full_name,
+                                                "branch": branch_name,
+                                                "sha": commit.sha,
+                                                "additions": commit.stats.additions if commit.stats else 0,
+                                                "deletions": commit.stats.deletions if commit.stats else 0,
+                                                "total_changes": commit.stats.total if commit.stats else 0,
+                                            }
+                                        )
+                                        db_session.add(db_event)
+                                        total_stored += 1
+                            except GithubException as e:
+                                print(f"Error fetching commits from branch {branch_name}: {e}")
+                                continue
 
                     db_session.commit()
                     print(f"  Processed {repo.full_name}")

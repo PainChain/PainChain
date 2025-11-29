@@ -18,7 +18,7 @@ function App() {
           <div className="header-right">
             <a className="nav-link github-link" href="https://github.com/yourusername/painchain" target="_blank" rel="noopener noreferrer">
               <img src={githubLogo} alt="GitHub Docs" className="github-icon" />
-              GitHub
+              GitHub Docs
             </a>
             <Link className="nav-link" to="/settings">Settings</Link>
             <a className="btn-primary">Upgrade to Pro</a>
