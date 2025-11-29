@@ -30,3 +30,13 @@ class Connector(Base):
     last_sync = Column(DateTime)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class Team(Base):
+    __tablename__ = "teams"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False, unique=True)
+    tags = Column(JSON, nullable=False)  # Array of tag strings
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

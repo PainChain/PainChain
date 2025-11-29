@@ -14,10 +14,17 @@ function Dashboard() {
   const [error, setError] = useState(null)
   const [sourceFilter, setSourceFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [teamFilter, setTeamFilter] = useState('')
+  const [tagFilter, setTagFilter] = useState('')
   const [expandedEvents, setExpandedEvents] = useState(new Set())
+  const [connectors, setConnectors] = useState([])
+  const [teams, setTeams] = useState([])
+  const [expandedTags, setExpandedTags] = useState(new Set())
 
   useEffect(() => {
     fetchData()
+    fetchConnectors()
+    fetchTeams()
     const interval = setInterval(fetchData, 30000)
     return () => clearInterval(interval)
   }, [sourceFilter, statusFilter])
@@ -44,6 +51,75 @@ function Dashboard() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchConnectors = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/connectors`)
+      const data = await response.json()
+      setConnectors(data)
+    } catch (err) {
+      console.error('Failed to fetch connectors:', err)
+    }
+  }
+
+  const fetchTeams = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/teams`)
+      const data = await response.json()
+      setTeams(data)
+    } catch (err) {
+      console.error('Failed to fetch teams:', err)
+    }
+  }
+
+  const getTagsForEvent = (event) => {
+    const connector = connectors.find(c => c.type === event.source)
+    if (!connector || !connector.config?.tags) return []
+
+    // Parse comma-separated tags
+    return connector.config.tags
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0)
+  }
+
+  const getAllTags = () => {
+    const tags = new Set()
+    connectors.forEach(connector => {
+      if (connector.config?.tags) {
+        connector.config.tags
+          .split(',')
+          .map(tag => tag.trim())
+          .filter(tag => tag.length > 0)
+          .forEach(tag => tags.add(tag))
+      }
+    })
+    return Array.from(tags).sort()
+  }
+
+  const filterChangesByTeamAndTag = (changes) => {
+    if (!teamFilter && !tagFilter) return changes
+
+    return changes.filter(change => {
+      const eventTags = getTagsForEvent(change)
+
+      // Filter by team - event must have at least one tag that the team subscribes to
+      if (teamFilter) {
+        const team = teams.find(t => t.id === parseInt(teamFilter))
+        if (team && team.tags) {
+          const hasTeamTag = team.tags.some(teamTag => eventTags.includes(teamTag))
+          if (!hasTeamTag) return false
+        }
+      }
+
+      // Filter by specific tag
+      if (tagFilter) {
+        if (!eventTags.includes(tagFilter)) return false
+      }
+
+      return true
+    })
   }
 
   const formatDate = (dateString) => {
@@ -107,6 +183,18 @@ function Dashboard() {
     })
   }
 
+  const toggleTags = (eventId) => {
+    setExpandedTags(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(eventId)) {
+        newSet.delete(eventId)
+      } else {
+        newSet.add(eventId)
+      }
+      return newSet
+    })
+  }
+
   return (
     <div className="content">
       {error && (
@@ -148,6 +236,24 @@ function Dashboard() {
             <option value="published">Published</option>
           </select>
         </div>
+        <div className="filter-group">
+          <label>Team:</label>
+          <select value={teamFilter} onChange={(e) => { setTeamFilter(e.target.value); setTagFilter(''); }}>
+            <option value="">All Teams</option>
+            {teams.map(team => (
+              <option key={team.id} value={team.id}>{team.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="filter-group">
+          <label>Tag:</label>
+          <select value={tagFilter} onChange={(e) => { setTagFilter(e.target.value); setTeamFilter(''); }}>
+            <option value="">All Tags</option>
+            {getAllTags().map(tag => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
+        </div>
         <button onClick={fetchData} className="refresh-btn">
           Refresh
         </button>
@@ -159,7 +265,7 @@ function Dashboard() {
         ) : changes.length === 0 ? (
           <p>No changes found. Make sure connectors are running.</p>
         ) : (
-          groupChangesByTime(changes).map((group, groupIndex) => (
+          groupChangesByTime(filterChangesByTeamAndTag(changes)).map((group, groupIndex) => (
             <div key={groupIndex} className="time-group">
               <div className="time-separator">
                 <span className="time-label">{group.label}</span>
@@ -234,32 +340,59 @@ function Dashboard() {
                     )}
 
                     <div className="change-footer">
-                      <div className="correlation-icon-wrapper">
-                        <svg className="correlation-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                        </svg>
-                        <div className="correlation-tooltip">
-                          Correlation is a Premium feature, upgrade to see how events relate.
-                        </div>
+                      <div className="footer-left">
+                        {(() => {
+                          const tags = getTagsForEvent(change)
+                          const tagsExpanded = expandedTags.has(change.id)
+                          const maxVisibleTags = 3
+
+                          if (tags.length === 0) return null
+
+                          return (
+                            <div className="event-tags">
+                              {(tagsExpanded ? tags : tags.slice(0, maxVisibleTags)).map((tag, idx) => (
+                                <span key={idx} className="label-tag">{tag}</span>
+                              ))}
+                              {tags.length > maxVisibleTags && (
+                                <button
+                                  className="tags-more-btn"
+                                  onClick={() => toggleTags(change.id)}
+                                >
+                                  {tagsExpanded ? 'less' : '...'}
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })()}
                       </div>
-                      <button
-                        className="expand-btn"
-                        onClick={() => toggleExpand(change.id)}
-                        aria-label={isExpanded ? 'Collapse' : 'Expand'}
-                      >
-                        <svg
-                          className={`expand-icon ${isExpanded ? 'expanded' : ''}`}
-                          width="20"
-                          height="20"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
+                      <div className="footer-right">
+                        <div className="correlation-icon-wrapper">
+                          <svg className="correlation-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                          </svg>
+                          <div className="correlation-tooltip">
+                            Correlation is a Premium feature, upgrade to see how events relate.
+                          </div>
+                        </div>
+                        <button
+                          className="expand-btn"
+                          onClick={() => toggleExpand(change.id)}
+                          aria-label={isExpanded ? 'Collapse' : 'Expand'}
                         >
-                          <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                      </button>
+                          <svg
+                            className={`expand-icon ${isExpanded ? 'expanded' : ''}`}
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )

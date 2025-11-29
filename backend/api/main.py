@@ -7,17 +7,25 @@ from pydantic import BaseModel
 import sys
 sys.path.insert(0, '/app')
 
-from shared import get_db, ChangeEvent, Connector
+from shared import get_db, ChangeEvent, Connector, Team
 
 # Pydantic models for request/response
 class ConnectorConfig(BaseModel):
     token: str = ""
     poll_interval: int = 300
     repos: str = ""
+    tags: str = ""
 
 class ConnectorUpdate(BaseModel):
     enabled: bool
     config: ConnectorConfig
+
+class TeamCreate(BaseModel):
+    name: str
+    tags: str = ""
+
+class TeamUpdate(BaseModel):
+    tags: str
 
 app = FastAPI(title="PainChain API", description="Change Management Aggregator API", version="0.1.0")
 
@@ -229,3 +237,106 @@ async def get_stats(db: Session = Depends(get_db)):
         "by_source": {source: count for source, count in sources},
         "by_status": {status: count for status, count in statuses}
     }
+
+
+# Team management endpoints
+@app.get("/api/teams")
+async def get_teams(db: Session = Depends(get_db)):
+    """Get all teams"""
+    teams = db.query(Team).all()
+    return [
+        {
+            "id": t.id,
+            "name": t.name,
+            "tags": t.tags,
+            "created_at": t.created_at.isoformat() if t.created_at else None
+        }
+        for t in teams
+    ]
+
+
+@app.get("/api/teams/{team_id}")
+async def get_team(team_id: int, db: Session = Depends(get_db)):
+    """Get a specific team"""
+    team = db.query(Team).filter(Team.id == team_id).first()
+
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    return {
+        "id": team.id,
+        "name": team.name,
+        "tags": team.tags,
+        "created_at": team.created_at.isoformat() if team.created_at else None
+    }
+
+
+@app.post("/api/teams")
+async def create_team(team_data: TeamCreate, db: Session = Depends(get_db)):
+    """Create a new team"""
+    # Check if team already exists
+    existing = db.query(Team).filter(Team.name == team_data.name).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Team already exists")
+
+    # Parse tags and ensure team name is the first tag
+    additional_tags = [t.strip() for t in team_data.tags.split(',') if t.strip()] if team_data.tags else []
+    all_tags = [team_data.name] + additional_tags
+
+    team = Team(
+        name=team_data.name,
+        tags=all_tags
+    )
+
+    db.add(team)
+    db.commit()
+    db.refresh(team)
+
+    return {
+        "id": team.id,
+        "name": team.name,
+        "tags": team.tags,
+        "message": "Team created successfully"
+    }
+
+
+@app.put("/api/teams/{team_id}")
+async def update_team(
+    team_id: int,
+    update: TeamUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update team tags"""
+    team = db.query(Team).filter(Team.id == team_id).first()
+
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    # Parse additional tags and combine with team name (immutable first tag)
+    additional_tags = [t.strip() for t in update.tags.split(',') if t.strip()] if update.tags else []
+    all_tags = [team.name] + additional_tags
+
+    team.tags = all_tags
+    db.commit()
+    db.refresh(team)
+
+    return {
+        "id": team.id,
+        "name": team.name,
+        "tags": team.tags,
+        "message": "Team updated successfully"
+    }
+
+
+@app.delete("/api/teams/{team_id}")
+async def delete_team(team_id: int, db: Session = Depends(get_db)):
+    """Delete a team"""
+    team = db.query(Team).filter(Team.id == team_id).first()
+
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    db.delete(team)
+    db.commit()
+
+    return {"message": "Team deleted successfully"}

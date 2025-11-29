@@ -35,3 +35,15 @@ CREATE TABLE IF NOT EXISTS connectors (
 -- Create index on connector type
 CREATE INDEX IF NOT EXISTS idx_connectors_type ON connectors(type);
 CREATE INDEX IF NOT EXISTS idx_connectors_enabled ON connectors(enabled);
+
+-- Create teams table to track teams and their tag subscriptions
+CREATE TABLE IF NOT EXISTS teams (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    tags JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create index on team name
+CREATE INDEX IF NOT EXISTS idx_teams_name ON teams(name);

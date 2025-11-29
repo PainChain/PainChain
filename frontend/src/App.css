@@ -390,11 +390,24 @@
 .change-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 16px;
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid #2a3142;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 /* Correlation Icon */
@@ -445,6 +458,36 @@
   right: 10px;
   border: 6px solid transparent;
   border-top-color: #2a3142;
+}
+
+/* Event Tags in Footer */
+.event-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.event-tags .label-tag {
+  font-size: 0.75em;
+  padding: 4px 10px;
+}
+
+.tags-more-btn {
+  background: none;
+  border: none;
+  color: #808080;
+  cursor: pointer;
+  font-size: 0.9em;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.tags-more-btn:hover {
+  color: #00E8A0;
+  background: rgba(0, 232, 160, 0.1);
 }
 
 /* Expand Button */
