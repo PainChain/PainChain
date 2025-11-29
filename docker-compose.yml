@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: painchain-db
+    environment:
+      POSTGRES_DB: painchain
+      POSTGRES_USER: painchain
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U painchain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis (Message broker for Celery)
+  redis:
+    image: redis:7-alpine
+    container_name: painchain-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Service
+  api:
+    build:
+      context: ./backend
+      dockerfile: api/Dockerfile
+    container_name: painchain-api
+    environment:
+      DATABASE_URL: postgresql://painchain:${DB_PASSWORD:-changeme}@db:5432/painchain
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/api:/app
+      - ./backend/shared:/app/shared
+      - ./backend/connectors:/app/connectors
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Celery Worker (Runs connector tasks)
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: api/Dockerfile
+    container_name: painchain-celery-worker
+    environment:
+      DATABASE_URL: postgresql://painchain:${DB_PASSWORD:-changeme}@db:5432/painchain
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./backend/api:/app
+      - ./backend/shared:/app/shared
+      - ./backend/connectors:/app/connectors
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A celery_app worker --loglevel=info
+
+  # Celery Beat (Scheduler for periodic tasks)
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: api/Dockerfile
+    container_name: painchain-celery-beat
+    environment:
+      DATABASE_URL: postgresql://painchain:${DB_PASSWORD:-changeme}@db:5432/painchain
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./backend/api:/app
+      - ./backend/shared:/app/shared
+      - ./backend/connectors:/app/connectors
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A celery_app beat --loglevel=info
+
+  # Frontend (React Dashboard)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: painchain-frontend
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+    command: npm run dev -- --host
+
+volumes:
+  postgres_data:

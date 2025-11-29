@@ -1,0 +1,41 @@
+{
+  "version": "0.1.0",
+  "features": {
+    "microservices_architecture": {
+      "description": "Clean separation between API, connectors, and database services",
+      "version": "0.1.0"
+    },
+    "github_connector": {
+      "description": "Polls GitHub repositories for pull requests and releases",
+      "version": "0.1.0"
+    },
+    "configurable_polling": {
+      "description": "Set poll intervals per connector via environment variables",
+      "version": "0.1.0"
+    },
+    "modular_connectors": {
+      "description": "Enable/disable connectors by commenting services in docker-compose.yml",
+      "version": "0.1.0"
+    },
+    "postgresql_database": {
+      "description": "Centralized PostgreSQL database with JSONB support for flexible data",
+      "version": "0.1.0"
+    },
+    "rest_api": {
+      "description": "Read-only FastAPI service with filtering and statistics endpoints",
+      "version": "0.1.0"
+    },
+    "react_dashboard": {
+      "description": "Real-time dashboard with filtering, auto-refresh, and statistics",
+      "version": "0.1.0"
+    },
+    "flexible_data_model": {
+      "description": "JSONB fields for descriptions supporting related_events and structured data",
+      "version": "0.1.0"
+    },
+    "docker_compose_orchestration": {
+      "description": "Single-command deployment with docker-compose",
+      "version": "0.1.0"
+    }
+  }
+}
