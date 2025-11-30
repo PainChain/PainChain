@@ -177,7 +177,16 @@ function Dashboard() {
   }
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString()
+    // Parse as UTC and convert to local timezone
+    const date = new Date(dateString)
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    })
   }
 
   const getTimeGroup = (timestamp) => {
