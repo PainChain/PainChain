@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import githubLogo from '../assets/logos/github.svg'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -11,6 +11,7 @@ function Dashboard() {
   const [changes, setChanges] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState(null)
   const [sourceFilter, setSourceFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -20,26 +21,70 @@ function Dashboard() {
   const [connectors, setConnectors] = useState([])
   const [teams, setTeams] = useState([])
   const [expandedTags, setExpandedTags] = useState(new Set())
+  const [offset, setOffset] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const limit = 50
 
   useEffect(() => {
-    fetchData()
+    // Reset and fetch initial data when filters change
+    setOffset(0)
+    setChanges([])
+    setHasMore(true)
+    fetchData(true)
     fetchConnections()
     fetchTeams()
-    const interval = setInterval(fetchData, 30000)
+    const interval = setInterval(() => fetchData(true), 30000)
     return () => clearInterval(interval)
   }, [sourceFilter, statusFilter])
 
-  const fetchData = async () => {
+  useEffect(() => {
+    // Add scroll listener for infinite scroll
+    const handleScroll = () => {
+      if (loadingMore || !hasMore) return
+
+      const scrollHeight = document.documentElement.scrollHeight
+      const scrollTop = document.documentElement.scrollTop
+      const clientHeight = document.documentElement.clientHeight
+
+      // Load more when user is 200px from bottom
+      if (scrollHeight - scrollTop - clientHeight < 200) {
+        const newOffset = offset + limit
+        setOffset(newOffset)
+        fetchData(false, newOffset)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [loadingMore, hasMore, offset])
+
+  const fetchData = async (reset = false, currentOffset = offset) => {
     try {
-      setLoading(true)
+      if (reset) {
+        setLoading(true)
+        setOffset(0)
+        currentOffset = 0
+      } else {
+        setLoadingMore(true)
+      }
 
       const params = new URLSearchParams()
       if (sourceFilter) params.append('source', sourceFilter)
       if (statusFilter) params.append('status', statusFilter)
+      params.append('limit', limit)
+      params.append('offset', currentOffset)
 
       const changesRes = await fetch(`${API_URL}/api/changes?${params}`)
       const changesData = await changesRes.json()
-      setChanges(changesData)
+
+      if (reset) {
+        setChanges(changesData)
+      } else {
+        setChanges(prev => [...prev, ...changesData])
+      }
+
+      // Check if there are more events to load
+      setHasMore(changesData.length === limit)
 
       const statsRes = await fetch(`${API_URL}/api/stats`)
       const statsData = await statsRes.json()
@@ -50,6 +95,15 @@ function Dashboard() {
       setError(err.message)
     } finally {
       setLoading(false)
+      setLoadingMore(false)
+    }
+  }
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      const newOffset = offset + limit
+      setOffset(newOffset)
+      fetchData(false, newOffset)
     }
   }
 
@@ -254,7 +308,7 @@ function Dashboard() {
             ))}
           </select>
         </div>
-        <button onClick={fetchData} className="refresh-btn">
+        <button onClick={() => fetchData(true)} className="refresh-btn">
           Refresh
         </button>
       </div>
@@ -399,6 +453,16 @@ function Dashboard() {
               })}
             </div>
           ))
+        )}
+        {loadingMore && (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#808080' }}>
+            Loading more events...
+          </div>
+        )}
+        {!loading && !loadingMore && !hasMore && changes.length > 0 && (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#808080' }}>
+            No more events to load
+          </div>
         )}
       </div>
     </div>
