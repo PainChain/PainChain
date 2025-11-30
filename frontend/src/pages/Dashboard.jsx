@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import githubLogo from '../assets/logos/github.svg'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -8,6 +9,7 @@ const connectorLogos = {
 }
 
 function Dashboard() {
+  const navigate = useNavigate()
   const [changes, setChanges] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -128,11 +130,16 @@ function Dashboard() {
   }
 
   const getTagsForEvent = (event) => {
-    const connector = connectors.find(c => c.type === event.source)
-    if (!connector || !connector.config?.tags) return []
+    // Match by connection_id first, fallback to source type for backwards compatibility
+    const connector = event.connection_id
+      ? connectors.find(c => c.id === event.connection_id)
+      : connectors.find(c => c.type === event.source)
 
-    // Parse comma-separated tags
-    return connector.config.tags
+    if (!connector) return []
+
+    // Get tags from connection's tags field (comma-separated)
+    const tags = connector.tags || ''
+    return tags
       .split(',')
       .map(tag => tag.trim())
       .filter(tag => tag.length > 0)
@@ -141,8 +148,8 @@ function Dashboard() {
   const getAllTags = () => {
     const tags = new Set()
     connectors.forEach(connector => {
-      if (connector.config?.tags) {
-        connector.config.tags
+      if (connector.tags) {
+        connector.tags
           .split(',')
           .map(tag => tag.trim())
           .filter(tag => tag.length > 0)
@@ -258,6 +265,12 @@ function Dashboard() {
     })
   }
 
+  const navigateToConnection = (event) => {
+    if (event.connection_id) {
+      navigate('/settings', { state: { connectionId: event.connection_id } })
+    }
+  }
+
   return (
     <div className="content">
       {error && (
@@ -343,7 +356,10 @@ function Dashboard() {
                           <img
                             src={connectorLogos[change.source]}
                             alt={`${change.source} logo`}
-                            className="connector-logo"
+                            className="connector-logo clickable"
+                            onClick={() => navigateToConnection(change)}
+                            style={{ cursor: 'pointer' }}
+                            title="Go to connection settings"
                           />
                         )}
                         <span className={`source-badge ${change.source}`}>{change.source}</span>

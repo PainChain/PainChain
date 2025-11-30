@@ -84,6 +84,7 @@ async def get_changes(
     return [
         {
             "id": e.id,
+            "connection_id": e.connection_id,
             "source": e.source,
             "event_id": e.event_id,
             "title": e.title,
@@ -109,6 +110,7 @@ async def get_change(event_id: int, db: Session = Depends(get_db)):
 
     return {
         "id": event.id,
+        "connection_id": event.connection_id,
         "source": event.source,
         "event_id": event.event_id,
         "title": event.title,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import '../Settings.css'
 import githubLogo from '../assets/logos/github.svg'
 
@@ -17,6 +17,7 @@ const CONNECTOR_TYPES = [
 
 function Settings() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [activeMenu, setActiveMenu] = useState('connections')
   const [connections, setConnections] = useState([])
   const [selectedConnection, setSelectedConnection] = useState(null)
@@ -47,6 +48,27 @@ function Settings() {
       fetchTeams()
     }
   }, [activeMenu])
+
+  // Auto-select connection when navigating from dashboard
+  useEffect(() => {
+    if (location.state?.connectionId && connections.length > 0) {
+      const connection = connections.find(c => c.id === location.state.connectionId)
+      if (connection) {
+        setSelectedConnection(connection)
+        setConfig({
+          name: connection.name,
+          enabled: connection.enabled,
+          token: connection.config?.token || '',
+          pollInterval: String(connection.config?.poll_interval || 300),
+          repos: connection.config?.repos || '',
+          branches: connection.config?.branches || '',
+          tags: connection.tags || ''
+        })
+      }
+      // Clear the navigation state
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.state, connections, navigate, location.pathname])
 
   useEffect(() => {
     if (selectedConnection) {
