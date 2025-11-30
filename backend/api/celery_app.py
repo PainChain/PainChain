@@ -26,5 +26,11 @@ celery_app.conf.update(
     worker_max_tasks_per_child=1000,
 )
 
-# Dynamic beat schedule - will be populated from database
-celery_app.conf.beat_schedule = {}
+# Periodic task schedule
+# This checks every 10 seconds which connections need syncing based on their individual poll_interval
+celery_app.conf.beat_schedule = {
+    'check-connections-for-sync': {
+        'task': 'tasks.sync_all_connections',
+        'schedule': 10.0,  # Check every 10 seconds
+    },
+}

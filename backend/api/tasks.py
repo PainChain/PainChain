@@ -74,8 +74,8 @@ def poll_connection(connection_id: int):
 
 @celery_app.task(name='tasks.sync_all_connections')
 def sync_all_connections():
-    """Sync all enabled connections"""
-    logger.info("Syncing all enabled connections")
+    """Sync enabled connections based on their individual poll_interval"""
+    logger.info("Checking connections for scheduled sync")
 
     db = next(get_db())
 
@@ -85,14 +85,34 @@ def sync_all_connections():
 
         results = []
         for connection in connections:
-            logger.info(f"Triggering sync for connection {connection.id} ({connection.name})")
-            result = poll_connection.delay(connection.id)
-            results.append({
-                "connection_id": connection.id,
-                "connection_name": connection.name,
-                "task_id": result.id
-            })
+            # Get poll_interval from connection config (default to 300 seconds)
+            poll_interval = connection.config.get('poll_interval', 300)
 
+            # Check if connection needs syncing based on last_sync time
+            should_sync = False
+            if connection.last_sync is None:
+                # Never synced before - sync now
+                should_sync = True
+            else:
+                # Check if enough time has passed since last sync
+                from datetime import timezone
+                now = datetime.now(timezone.utc)
+                time_since_sync = (now - connection.last_sync.replace(tzinfo=timezone.utc)).total_seconds()
+                should_sync = time_since_sync >= poll_interval
+
+            if should_sync:
+                logger.info(f"Triggering sync for connection {connection.id} ({connection.name}) - poll_interval: {poll_interval}s")
+                result = poll_connection.delay(connection.id)
+                results.append({
+                    "connection_id": connection.id,
+                    "connection_name": connection.name,
+                    "task_id": result.id,
+                    "poll_interval": poll_interval
+                })
+            else:
+                logger.debug(f"Skipping connection {connection.id} ({connection.name}) - not due for sync yet")
+
+        logger.info(f"Triggered sync for {len(results)} connections")
         return {"status": "success", "triggered": len(results), "tasks": results}
 
     except Exception as e:

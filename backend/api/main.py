@@ -180,6 +180,16 @@ async def create_connection(
     db.commit()
     db.refresh(connection)
 
+    # Trigger immediate sync if connection is enabled
+    task_id = None
+    if connection.enabled:
+        try:
+            from tasks import poll_connection
+            task = poll_connection.delay(connection.id)
+            task_id = task.id
+        except Exception as e:
+            print(f"Failed to trigger initial sync: {e}")
+
     return {
         "id": connection.id,
         "name": connection.name,
@@ -187,7 +197,8 @@ async def create_connection(
         "enabled": connection.enabled,
         "config": connection.config,
         "tags": connection.tags,
-        "message": "Connection created successfully"
+        "message": "Connection created successfully",
+        "task_id": task_id
     }
 
 
@@ -212,6 +223,16 @@ async def update_connection(
     db.commit()
     db.refresh(connection)
 
+    # Trigger immediate sync if connection is enabled
+    task_id = None
+    if connection.enabled:
+        try:
+            from tasks import poll_connection
+            task = poll_connection.delay(connection.id)
+            task_id = task.id
+        except Exception as e:
+            print(f"Failed to trigger sync after update: {e}")
+
     return {
         "id": connection.id,
         "name": connection.name,
@@ -219,7 +240,8 @@ async def update_connection(
         "enabled": connection.enabled,
         "config": connection.config,
         "tags": connection.tags,
-        "message": "Connection updated successfully"
+        "message": "Connection updated successfully",
+        "task_id": task_id
     }
 
 
