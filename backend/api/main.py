@@ -89,11 +89,11 @@ async def get_changes(
             "title": e.title,
             "description": e.description,
             "author": e.author,
-            "timestamp": e.timestamp.isoformat(),
+            "timestamp": e.timestamp.isoformat() + 'Z' if e.timestamp.tzinfo is None else e.timestamp.isoformat(),
             "url": e.url,
             "status": e.status,
             "metadata": e.event_metadata,
-            "created_at": e.created_at.isoformat() if e.created_at else None
+            "created_at": (e.created_at.isoformat() + 'Z' if e.created_at.tzinfo is None else e.created_at.isoformat()) if e.created_at else None
         }
         for e in events
     ]
@@ -114,11 +114,11 @@ async def get_change(event_id: int, db: Session = Depends(get_db)):
         "title": event.title,
         "description": event.description,
         "author": event.author,
-        "timestamp": event.timestamp.isoformat(),
+        "timestamp": event.timestamp.isoformat() + 'Z' if event.timestamp.tzinfo is None else event.timestamp.isoformat(),
         "url": event.url,
         "status": event.status,
         "metadata": event.metadata,
-        "created_at": event.created_at.isoformat() if event.created_at else None
+        "created_at": (event.created_at.isoformat() + 'Z' if event.created_at.tzinfo is None else event.created_at.isoformat()) if event.created_at else None
     }
 
 
@@ -135,8 +135,8 @@ async def get_connections(db: Session = Depends(get_db)):
             "enabled": c.enabled,
             "config": c.config,
             "tags": c.tags or "",
-            "last_sync": c.last_sync.isoformat() if c.last_sync else None,
-            "created_at": c.created_at.isoformat() if c.created_at else None
+            "last_sync": (c.last_sync.isoformat() + 'Z' if c.last_sync.tzinfo is None else c.last_sync.isoformat()) if c.last_sync else None,
+            "created_at": (c.created_at.isoformat() + 'Z' if c.created_at.tzinfo is None else c.created_at.isoformat()) if c.created_at else None
         }
         for c in connections
     ]
@@ -157,8 +157,8 @@ async def get_connection(connection_id: int, db: Session = Depends(get_db)):
         "enabled": connection.enabled,
         "config": connection.config,
         "tags": connection.tags or "",
-        "last_sync": connection.last_sync.isoformat() if connection.last_sync else None,
-        "created_at": connection.created_at.isoformat() if connection.created_at else None
+        "last_sync": (connection.last_sync.isoformat() + 'Z' if connection.last_sync.tzinfo is None else connection.last_sync.isoformat()) if connection.last_sync else None,
+        "created_at": (connection.created_at.isoformat() + 'Z' if connection.created_at.tzinfo is None else connection.created_at.isoformat()) if connection.created_at else None
     }
 
 
@@ -317,7 +317,7 @@ async def get_teams(db: Session = Depends(get_db)):
             "id": t.id,
             "name": t.name,
             "tags": t.tags,
-            "created_at": t.created_at.isoformat() if t.created_at else None
+            "created_at": (t.created_at.isoformat() + 'Z' if t.created_at.tzinfo is None else t.created_at.isoformat()) if t.created_at else None
         }
         for t in teams
     ]
@@ -335,7 +335,7 @@ async def get_team(team_id: int, db: Session = Depends(get_db)):
         "id": team.id,
         "name": team.name,
         "tags": team.tags,
-        "created_at": team.created_at.isoformat() if team.created_at else None
+        "created_at": (team.created_at.isoformat() + 'Z' if team.created_at.tzinfo is None else team.created_at.isoformat()) if team.created_at else None
     }
 
 
