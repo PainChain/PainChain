@@ -5,11 +5,13 @@ import logo from './logo_transparent.png'
 import githubLogo from './assets/logos/github.svg'
 import Dashboard from './pages/Dashboard'
 import Settings from './pages/Settings'
+import { ToastProvider } from './components/Toast'
 
 function App() {
   return (
-    <Router>
-      <div className="app">
+    <ToastProvider>
+      <Router>
+        <div className="app">
         <header className="header">
           <div className="header-left">
             <img src={logo} alt="PainChain Logo" className="logo" />
@@ -31,6 +33,7 @@ function App() {
         </Routes>
       </div>
     </Router>
+    </ToastProvider>
   )
 }
 

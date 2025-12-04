@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import '../Settings.css'
 import githubLogo from '../assets/logos/github.svg'
 import { getFieldVisibility, toggleField, resetToDefaults, FIELD_LABELS, EVENT_TYPE_NAMES } from '../utils/fieldVisibility'
+import { useToast } from '../components/Toast'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -24,6 +25,7 @@ const CONNECTOR_EVENT_TYPES = {
 function Settings() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { showToast } = useToast()
   const [activeMenu, setActiveMenu] = useState('connections')
   const [connections, setConnections] = useState([])
   const [selectedConnection, setSelectedConnection] = useState(null)
@@ -154,11 +156,11 @@ function Settings() {
           setSelectedConnection({...selectedConnection, enabled: enabled})
         }
       } else {
-        alert('Failed to update connection')
+        showToast('Failed to update connection', 'error')
       }
     } catch (err) {
       console.error('Failed to toggle connection:', err)
-      alert('Failed to update connection')
+      showToast('Failed to update connection', 'error')
     }
   }
 
@@ -202,9 +204,9 @@ function Settings() {
             branches: '',
             tags: ''
           })
-          alert('Connection created successfully!')
+          showToast('Connection created successfully!')
         } else {
-          alert('Failed to create connection')
+          showToast('Failed to create connection', 'error')
         }
       } else {
         // Update existing connection (enabled state is managed by toggle in list)
@@ -228,14 +230,14 @@ function Settings() {
 
         if (response.ok) {
           await fetchConnections()
-          alert('Configuration saved successfully!')
+          showToast('Configuration saved successfully!')
         } else {
-          alert('Failed to save configuration')
+          showToast('Failed to save configuration', 'error')
         }
       }
     } catch (err) {
       console.error('Failed to save connection:', err)
-      alert('Failed to save configuration')
+      showToast('Failed to save configuration', 'error')
     } finally {
       setSaving(false)
     }
@@ -253,13 +255,13 @@ function Settings() {
       if (response.ok) {
         await fetchConnections()
         setSelectedConnection(null)
-        alert('Connection deleted successfully!')
+        showToast('Connection deleted successfully!')
       } else {
-        alert('Failed to delete connection')
+        showToast('Failed to delete connection', 'error')
       }
     } catch (err) {
       console.error('Failed to delete connection:', err)
-      alert('Failed to delete connection')
+      showToast('Failed to delete connection', 'error')
     }
   }
 
@@ -282,9 +284,9 @@ function Settings() {
         if (response.ok) {
           await fetchTeams()
           setSelectedTeam(null)
-          alert('Team updated successfully!')
+          showToast('Team updated successfully!')
         } else {
-          alert('Failed to update team')
+          showToast('Failed to update team', 'error')
         }
       } else {
         // Create new team
@@ -302,14 +304,14 @@ function Settings() {
         if (response.ok) {
           await fetchTeams()
           setTeamConfig({ name: '', tags: '' })
-          alert('Team created successfully!')
+          showToast('Team created successfully!')
         } else {
-          alert('Failed to create team')
+          showToast('Failed to create team', 'error')
         }
       }
     } catch (err) {
       console.error('Failed to save team:', err)
-      alert('Failed to save team')
+      showToast('Failed to save team', 'error')
     } finally {
       setSaving(false)
     }
@@ -326,13 +328,13 @@ function Settings() {
       if (response.ok) {
         await fetchTeams()
         setSelectedTeam(null)
-        alert('Team deleted successfully!')
+        showToast('Team deleted successfully!')
       } else {
-        alert('Failed to delete team')
+        showToast('Failed to delete team', 'error')
       }
     } catch (err) {
       console.error('Failed to delete team:', err)
-      alert('Failed to delete team')
+      showToast('Failed to delete team', 'error')
     }
   }
 

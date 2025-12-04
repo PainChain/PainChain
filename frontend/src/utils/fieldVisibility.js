@@ -83,12 +83,18 @@ export const isFieldVisible = (eventType, fieldKey) => {
 
 export const toggleField = (eventType, fieldKey) => {
   const visibility = getFieldVisibility()
-  if (!visibility[eventType]) {
-    visibility[eventType] = {}
+
+  // Create a new object to avoid mutating state
+  const newVisibility = {
+    ...visibility,
+    [eventType]: {
+      ...(visibility[eventType] || {}),
+      [fieldKey]: !(visibility[eventType]?.[fieldKey] ?? true)
+    }
   }
-  visibility[eventType][fieldKey] = !visibility[eventType][fieldKey]
-  setFieldVisibility(visibility)
-  return visibility
+
+  setFieldVisibility(newVisibility)
+  return newVisibility
 }
 
 export const resetToDefaults = () => {
