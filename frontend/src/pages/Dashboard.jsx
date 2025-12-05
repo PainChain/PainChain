@@ -996,6 +996,16 @@ function Dashboard() {
 
     return (
       <div className="change-details">
+        {/* Show description if available */}
+        {event.description?.text && (
+          <div className="enriched-section">
+            <h4>Description</h4>
+            <div className="description-content">
+              {event.description.text}
+            </div>
+          </div>
+        )}
+
         {config.sections.map((section, sectionIdx) => (
           <div key={sectionIdx} className="enriched-section">
             <h4>{section.title}</h4>
@@ -1162,14 +1172,6 @@ function Dashboard() {
                         {change.title}
                       </a>
                     </h3>
-                    {change.description?.text && (
-                      <p className="change-description">
-                        {isExpanded
-                          ? change.description.text
-                          : `${change.description.text.substring(0, 200)}${change.description.text.length > 200 ? '...' : ''}`
-                        }
-                      </p>
-                    )}
                     {change.metadata?.repository && (
                       <div className="change-repo">
                         Repository: {change.metadata.repository}

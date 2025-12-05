@@ -1,5 +1,5 @@
 .app {
-  padding-top: 80px;
+  padding-top: 60px;
 }
 
 .header {
@@ -11,7 +11,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 48px;
+  padding: 10px 24px;
   background: rgba(26, 31, 46, 0.85);
   border-bottom: 1px solid rgba(42, 49, 66, 0.6);
   backdrop-filter: blur(12px);
@@ -21,18 +21,18 @@
 .header-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .logo {
-  width: 45px;
-  height: 45px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
 }
 
 .header-left h1 {
-  font-size: 1.4em;
-  font-weight: 600;
+  font-size: 1.1em;
+  font-weight: 500;
   color: #ffffff;
   margin: 0;
   letter-spacing: -0.01em;
@@ -41,20 +41,20 @@
 .header-right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
 }
 
 .nav-link {
   color: #ffffff;
   text-decoration: none;
-  font-size: 0.95em;
-  font-weight: 500;
+  font-size: 0.85em;
+  font-weight: 400;
   transition: color 0.2s;
   cursor: pointer;
-  padding: 8px 16px;
+  padding: 6px 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .nav-link:hover {
@@ -68,8 +68,8 @@
 }
 
 .github-icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   opacity: 0.9;
   transition: opacity 0.2s;
 }
@@ -81,10 +81,10 @@
 .btn-primary {
   background: #00E8A0;
   color: #0f1419;
-  padding: 10px 24px;
+  padding: 6px 16px;
   border-radius: 6px;
-  font-weight: 600;
-  font-size: 0.95em;
+  font-weight: 500;
+  font-size: 0.85em;
   border: none;
   cursor: pointer;
   transition: all 0.2s;
@@ -271,21 +271,21 @@
 .changes-list {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
 }
 
 /* Time Groups */
 .time-group {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
 }
 
 .time-separator {
   display: flex;
   align-items: center;
   text-align: center;
-  margin: 32px 0 24px;
+  margin: 20px 0 16px;
   position: relative;
 }
 
@@ -307,23 +307,23 @@
 
 .time-label {
   color: #808080;
-  font-size: 0.85em;
-  font-weight: 600;
+  font-size: 0.75em;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 6px 16px;
+  padding: 4px 12px;
   background: #0f1419;
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid #2a3142;
   white-space: nowrap;
 }
 
 .change-card {
   background: #1a1f2e;
-  padding: 24px;
-  border-radius: 12px;
+  padding: 14px 16px;
+  border-radius: 8px;
   border: 1px solid #2a3142;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .change-card:hover {
@@ -336,27 +336,28 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
 }
 
 .change-badges {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
 }
 
 .connector-logo {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
 }
 
 .source-badge,
 .status-badge {
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 0.85em;
-  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 0.75em;
+  font-weight: 500;
   text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .source-badge.github {
@@ -400,6 +401,12 @@
   transition: color 0.2s;
 }
 
+.change-card h3 {
+  font-size: 0.95em;
+  font-weight: 500;
+  margin: 0 0 6px 0;
+}
+
 .change-card h3 a:hover {
   color: #00E8A0;
 }
@@ -407,18 +414,21 @@
 .change-meta {
   text-align: right;
   color: #808080;
-  font-size: 0.85em;
-  line-height: 1.5;
+  font-size: 0.75em;
+  line-height: 1.4;
+  font-weight: 400;
 }
 
 .change-description {
   color: #b0b0b0;
-  line-height: 1.7;
-  margin-bottom: 12px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  font-size: 0.875em;
+  font-weight: 400;
 }
 
 .change-repo {
-  font-size: 0.85em;
+  font-size: 0.8em;
   color: #00E8A0;
   font-weight: 500;
 }
@@ -428,23 +438,23 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-top: 16px;
-  padding-top: 12px;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid #2a3142;
 }
 
 .footer-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex: 1;
 }
 
 .footer-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 /* Correlation Icon */
@@ -514,8 +524,9 @@
 }
 
 .event-tags .label-tag {
-  font-size: 0.75em;
-  padding: 4px 10px;
+  font-size: 0.7em;
+  padding: 3px 8px;
+  font-weight: 500;
 }
 
 .tags-more-btn {
@@ -523,7 +534,8 @@
   border: none;
   color: #808080;
   cursor: pointer;
-  font-size: 0.9em;
+  font-size: 0.75em;
+  font-weight: 500;
   padding: 4px 8px;
   border-radius: 4px;
   transition: all 0.2s;
@@ -601,6 +613,14 @@
 /* Enriched Data Sections */
 .enriched-section {
   margin-bottom: 20px;
+}
+
+.description-content {
+  color: #b0b0b0;
+  line-height: 1.6;
+  font-size: 0.875em;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .enriched-grid {
@@ -736,9 +756,9 @@
   background: rgba(0, 232, 160, 0.1);
   color: #00E8A0;
   border: 1px solid rgba(0, 232, 160, 0.3);
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 0.85em;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 0.75em;
   font-weight: 500;
 }
 
