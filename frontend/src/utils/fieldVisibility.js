@@ -28,7 +28,8 @@ const DEFAULT_FIELD_VISIBILITY = {
     trigger: true,
     run_number: true,
     failed_jobs: true,
-    failed_jobs_detail: true
+    failed_jobs_detail: true,
+    logs: true
   },
   Pipeline: {
     status: true,
@@ -38,7 +39,8 @@ const DEFAULT_FIELD_VISIBILITY = {
     source: true,
     pipeline_id: true,
     failed_jobs: true,
-    failed_jobs_detail: true
+    failed_jobs_detail: true,
+    logs: true
   },
   Commit: {
     branch: true,
@@ -177,7 +179,8 @@ export const FIELD_LABELS = {
     trigger: 'Trigger Event',
     run_number: 'Run Number',
     failed_jobs: 'Failed Jobs Count',
-    failed_jobs_detail: 'Failed Jobs Details'
+    failed_jobs_detail: 'Failed Jobs Details',
+    logs: 'View Logs Link'
   },
   Pipeline: {
     status: 'Status',
@@ -187,7 +190,8 @@ export const FIELD_LABELS = {
     source: 'Source',
     pipeline_id: 'Pipeline ID',
     failed_jobs: 'Failed Jobs Count',
-    failed_jobs_detail: 'Failed Jobs Details'
+    failed_jobs_detail: 'Failed Jobs Details',
+    logs: 'View Logs Link'
   },
   Commit: {
     branch: 'Branch',

@@ -143,8 +143,21 @@ const EVENT_TYPE_CONFIG = {
             key: 'status',
             label: 'Status',
             value: (event) => {
-              const conclusion = event.metadata?.conclusion
+              let conclusion = event.metadata?.conclusion
+
+              // If no conclusion but has duration, it's completed (successful)
+              if (!conclusion && event.metadata?.duration_seconds !== undefined && event.metadata?.duration_seconds > 0) {
+                const hasFailed = event.metadata?.failed_jobs_count > 0
+                conclusion = hasFailed ? 'failure' : 'success'
+              }
+
+              // Fall back to status field if still no conclusion
+              if (!conclusion) {
+                conclusion = event.status || event.metadata?.status
+              }
+
               if (!conclusion) return null
+
               const color = conclusion === 'success' ? '#3fb950' : conclusion === 'failure' ? '#f85149' : '#808080'
               const icon = conclusion === 'success' ? '✓ ' : conclusion === 'failure' ? '✗ ' : ''
               return { type: 'html', content: <span style={{ color }}>{icon}{conclusion}</span> }
@@ -186,6 +199,13 @@ const EVENT_TYPE_CONFIG = {
             label: 'Failed Jobs',
             value: (event) => event.metadata?.failed_jobs_count > 0
               ? { type: 'html', content: <span style={{ color: '#f85149' }}>{event.metadata.failed_jobs_count}</span> }
+              : null
+          },
+          {
+            key: 'logs',
+            label: 'Logs',
+            value: (event) => event.url
+              ? { type: 'html', content: <a href={event.url} target="_blank" rel="noopener noreferrer" style={{ color: '#00E8A0', textDecoration: 'none' }}>View on GitHub →</a> }
               : null
           }
         ],
@@ -413,6 +433,13 @@ const EVENT_TYPE_CONFIG = {
             label: 'Failed Jobs',
             value: (event) => event.metadata?.failed_jobs_count > 0
               ? { type: 'html', content: <span style={{ color: '#f85149' }}>{event.metadata.failed_jobs_count}</span> }
+              : null
+          },
+          {
+            key: 'logs',
+            label: 'Logs',
+            value: (event) => event.url
+              ? { type: 'html', content: <a href={event.url} target="_blank" rel="noopener noreferrer" style={{ color: '#00E8A0', textDecoration: 'none' }}>View on GitLab →</a> }
               : null
           }
         ],
