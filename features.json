@@ -13,6 +13,10 @@
       "description": "Polls GitLab projects for merge requests, releases, and pipeline runs",
       "version": "0.1.0"
     },
+    "kubernetes_connector": {
+      "description": "Monitors Kubernetes clusters for configuration changes including deployments, statefulsets, daemonsets, services, configmaps, secrets, and ingresses",
+      "version": "0.2.0"
+    },
     "configurable_polling": {
       "description": "Set poll intervals per connector via environment variables",
       "version": "0.1.0"
@@ -40,6 +44,18 @@
     "docker_compose_orchestration": {
       "description": "Single-command deployment with docker-compose",
       "version": "0.1.0"
+    },
+    "toast_notifications": {
+      "description": "Custom toast notification system for user feedback with auto-dismiss and manual close",
+      "version": "0.2.0"
+    },
+    "field_visibility_controls": {
+      "description": "Customizable field visibility per connector type to show/hide specific data fields when expanding events",
+      "version": "0.2.0"
+    },
+    "timestamp_filtering": {
+      "description": "Custom date/time picker with calendar dropdown for filtering events by timestamp range",
+      "version": "0.2.0"
     }
   }
 }

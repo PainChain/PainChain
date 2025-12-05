@@ -51,6 +51,52 @@ const DEFAULT_FIELD_VISIBILITY = {
     prerelease: true,
     draft: true,
     assets: true
+  },
+  K8sDeployment: {
+    namespace: true,
+    cluster: true,
+    replicas: true,
+    strategy: true,
+    images: true
+  },
+  K8sStatefulSet: {
+    namespace: true,
+    cluster: true,
+    replicas: true,
+    service_name: true,
+    images: true
+  },
+  K8sDaemonSet: {
+    namespace: true,
+    cluster: true,
+    scheduled: true,
+    images: true
+  },
+  K8sService: {
+    namespace: true,
+    cluster: true,
+    type: true,
+    cluster_ip: true,
+    ports: true
+  },
+  K8sConfigMap: {
+    namespace: true,
+    cluster: true,
+    num_keys: true,
+    keys: true
+  },
+  K8sSecret: {
+    namespace: true,
+    cluster: true,
+    type: true,
+    num_keys: true,
+    keys: true
+  },
+  K8sIngress: {
+    namespace: true,
+    cluster: true,
+    ingress_class: true,
+    hosts: true
   }
 }
 
@@ -154,6 +200,52 @@ export const FIELD_LABELS = {
     prerelease: 'Pre-release Flag',
     draft: 'Draft Flag',
     assets: 'Release Assets'
+  },
+  K8sDeployment: {
+    namespace: 'Namespace',
+    cluster: 'Cluster',
+    replicas: 'Replicas Status',
+    strategy: 'Deployment Strategy',
+    images: 'Container Images'
+  },
+  K8sStatefulSet: {
+    namespace: 'Namespace',
+    cluster: 'Cluster',
+    replicas: 'Replicas Status',
+    service_name: 'Service Name',
+    images: 'Container Images'
+  },
+  K8sDaemonSet: {
+    namespace: 'Namespace',
+    cluster: 'Cluster',
+    scheduled: 'Pods Status',
+    images: 'Container Images'
+  },
+  K8sService: {
+    namespace: 'Namespace',
+    cluster: 'Cluster',
+    type: 'Service Type',
+    cluster_ip: 'Cluster IP',
+    ports: 'Ports'
+  },
+  K8sConfigMap: {
+    namespace: 'Namespace',
+    cluster: 'Cluster',
+    num_keys: 'Number of Keys',
+    keys: 'Keys List'
+  },
+  K8sSecret: {
+    namespace: 'Namespace',
+    cluster: 'Cluster',
+    type: 'Secret Type',
+    num_keys: 'Number of Keys',
+    keys: 'Keys List'
+  },
+  K8sIngress: {
+    namespace: 'Namespace',
+    cluster: 'Cluster',
+    ingress_class: 'Ingress Class',
+    hosts: 'Hosts'
   }
 }
 
@@ -163,5 +255,12 @@ export const EVENT_TYPE_NAMES = {
   Workflow: 'Workflows (GitHub Actions)',
   Pipeline: 'Pipelines (GitLab CI)',
   Commit: 'Commits',
-  Release: 'Releases'
+  Release: 'Releases',
+  K8sDeployment: 'Kubernetes Deployments',
+  K8sStatefulSet: 'Kubernetes StatefulSets',
+  K8sDaemonSet: 'Kubernetes DaemonSets',
+  K8sService: 'Kubernetes Services',
+  K8sConfigMap: 'Kubernetes ConfigMaps',
+  K8sSecret: 'Kubernetes Secrets',
+  K8sIngress: 'Kubernetes Ingresses'
 }
