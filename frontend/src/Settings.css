@@ -1,6 +1,6 @@
 /* Settings Page */
 .settings-page {
-  padding-top: 80px;
+  padding-top: 53px;
   min-height: 100vh;
   background: #0f1419;
 }
@@ -198,7 +198,7 @@
 .settings-detail {
   position: fixed;
   right: 0;
-  top: 80px;
+  top: 53px;
   bottom: 0;
   width: 450px;
   background: #1a1f2e;
