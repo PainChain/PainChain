@@ -10,10 +10,15 @@ from shared import ChangeEvent, SessionLocal
 class GitHubConnector:
     """GitHub connector that fetches PRs and releases"""
 
-    def __init__(self, token: str, repos: List[str] = None):
+    def __init__(self, token: str, repos: List[str] = None, base_url: str = None):
         self.token = token
         self.repos = repos or []
-        self.client = Github(token) if token else None
+        self.base_url = base_url
+        # Use base_url if provided (for GitHub Enterprise)
+        if token:
+            self.client = Github(base_url=base_url, login_or_token=token) if base_url else Github(token)
+        else:
+            self.client = None
 
     def test_connection(self) -> bool:
         """Test GitHub connection"""
@@ -269,7 +274,7 @@ def sync_github(db_session, config: Dict[str, Any], connection_id: int) -> Dict[
 
     Args:
         db_session: SQLAlchemy database session
-        config: Configuration dict with keys: token, repos, poll_interval, branches
+        config: Configuration dict with keys: token, repos, poll_interval, branches, isEnterprise, base_url
         connection_id: ID of the connection this sync belongs to
 
     Returns:
@@ -278,6 +283,8 @@ def sync_github(db_session, config: Dict[str, Any], connection_id: int) -> Dict[
     token = config.get('token', '')
     repos_str = config.get('repos', '')
     branches_str = config.get('branches', '')
+    is_enterprise = config.get('isEnterprise', False) or config.get('is_enterprise', False)
+    base_url = config.get('base_url', '') or config.get('baseUrl', '')
 
     if not token:
         return {"error": "No GitHub token configured"}
@@ -288,8 +295,11 @@ def sync_github(db_session, config: Dict[str, Any], connection_id: int) -> Dict[
     # Parse branches list
     branches = [b.strip() for b in branches_str.split(',') if b.strip()] if branches_str else []
 
+    # Only use base_url if isEnterprise is true
+    enterprise_url = base_url if (is_enterprise and base_url) else None
+
     # Create connector and sync
-    connector = GitHubConnector(token=token, repos=repos)
+    connector = GitHubConnector(token=token, repos=repos, base_url=enterprise_url)
 
     if not connector.test_connection():
         return {"error": "Failed to connect to GitHub"}

@@ -350,20 +350,28 @@ async def test_connection(test_data: ConnectionTest):
         if connector_type == 'github':
             from github import Github, GithubException
             token = config.get('token', '')
+            is_enterprise = config.get('isEnterprise', False) or config.get('is_enterprise', False)
+            base_url = config.get('base_url', '') or config.get('baseUrl', '')
+
             if not token:
                 return {"success": False, "message": "GitHub token is required"}
 
+            # Only use base_url if isEnterprise is true
+            enterprise_url = base_url if (is_enterprise and base_url) else None
+
             try:
-                client = Github(token)
+                # Use base_url if provided (for GitHub Enterprise)
+                client = Github(base_url=enterprise_url, login_or_token=token) if enterprise_url else Github(token)
                 user = client.get_user()
                 login = user.login
                 return {
                     "success": True,
-                    "message": f"Connected successfully as {login}",
+                    "message": f"Connected successfully as {login}" + (f" (Enterprise)" if enterprise_url else ""),
                     "details": {
                         "login": login,
                         "name": user.name,
-                        "type": user.type
+                        "type": user.type,
+                        "base_url": enterprise_url or "https://api.github.com"
                     }
                 }
             except GithubException as e:

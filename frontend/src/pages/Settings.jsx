@@ -58,7 +58,11 @@ function Settings() {
 
     const initialConfig = { enabled: false }
     connectorDef.fields.forEach(field => {
-      initialConfig[field.key] = field.default || ''
+      if (field.type === 'checkbox') {
+        initialConfig[field.key] = field.default === true || field.default === 'true'
+      } else {
+        initialConfig[field.key] = field.default || ''
+      }
     })
     return initialConfig
   }
@@ -74,6 +78,10 @@ function Settings() {
         loadedConfig[field.key] = connection.name || ''
       } else if (field.key === 'tags') {
         loadedConfig[field.key] = connection.tags || ''
+      } else if (field.type === 'checkbox') {
+        // Handle boolean values properly
+        const value = connection.config?.[field.key]
+        loadedConfig[field.key] = value === true || value === 'true' || field.default === true
       } else {
         loadedConfig[field.key] = connection.config?.[field.key] || field.default || ''
       }
@@ -198,6 +206,8 @@ function Settings() {
           // Handle special conversions
           if (field.key === 'pollInterval') {
             apiConfig['poll_interval'] = parseInt(value) || 300
+          } else if (field.type === 'checkbox') {
+            apiConfig[field.key] = value === true || value === 'true'
           } else if (field.type === 'number') {
             apiConfig[field.key] = parseInt(value) || 0
           } else {
@@ -301,6 +311,8 @@ function Settings() {
 
           if (field.key === 'pollInterval') {
             testConfig['poll_interval'] = parseInt(value) || 300
+          } else if (field.type === 'checkbox') {
+            testConfig[field.key] = value === true || value === 'true'
           } else if (field.type === 'number') {
             testConfig[field.key] = parseInt(value) || 0
           } else {
@@ -556,20 +568,47 @@ function Settings() {
 
                   if (!connectorDef) return null
 
-                  return connectorDef.fields.map((field) => (
-                    <div key={field.key} className="form-group">
-                      <label>{field.label}</label>
-                      <input
-                        type={field.type}
-                        placeholder={field.placeholder}
-                        className="form-input"
-                        value={config[field.key] || ''}
-                        onChange={(e) => setConfig({...config, [field.key]: e.target.value})}
-                        required={field.required}
-                      />
-                      {field.help && <span className="form-help">{field.help}</span>}
-                    </div>
-                  ))
+                  return connectorDef.fields.map((field) => {
+                    // Handle conditional fields
+                    if (field.conditionalOn) {
+                      const conditionMet = config[field.conditionalOn] === true || config[field.conditionalOn] === 'true'
+                      if (!conditionMet) return null
+                    }
+
+                    // Render checkbox fields differently
+                    if (field.type === 'checkbox') {
+                      return (
+                        <div key={field.key} className="form-group">
+                          <label className="checkbox-label">
+                            <span>{field.label}</span>
+                            <input
+                              type="checkbox"
+                              checked={config[field.key] === true || config[field.key] === 'true'}
+                              onChange={(e) => setConfig({...config, [field.key]: e.target.checked})}
+                            />
+                            <span className="checkbox-toggle"></span>
+                          </label>
+                          {field.help && <span className="form-help">{field.help}</span>}
+                        </div>
+                      )
+                    }
+
+                    // Render regular input fields
+                    return (
+                      <div key={field.key} className="form-group">
+                        <label>{field.label}</label>
+                        <input
+                          type={field.type}
+                          placeholder={field.placeholder}
+                          className="form-input"
+                          value={config[field.key] || ''}
+                          onChange={(e) => setConfig({...config, [field.key]: e.target.value})}
+                          required={field.required}
+                        />
+                        {field.help && <span className="form-help">{field.help}</span>}
+                      </div>
+                    )
+                  })
                 })()}
 
                 <button

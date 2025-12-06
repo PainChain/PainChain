@@ -11,6 +11,23 @@
         "required": true
       },
       {
+        "key": "isEnterprise",
+        "label": "GitHub Enterprise",
+        "type": "checkbox",
+        "help": "Check this if connecting to GitHub Enterprise Server",
+        "required": false,
+        "default": false
+      },
+      {
+        "key": "baseUrl",
+        "label": "Enterprise API URL",
+        "type": "text",
+        "placeholder": "https://github.mycompany.com/api/v3",
+        "help": "Your GitHub Enterprise Server API endpoint",
+        "required": false,
+        "conditionalOn": "isEnterprise"
+      },
+      {
         "key": "token",
         "label": "Token",
         "type": "password",
