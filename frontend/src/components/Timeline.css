@@ -1,0 +1,94 @@
+.timeline-container {
+  background: #1e2433;
+  border: 1px solid #2a3142;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.timeline-header h3 {
+  margin: 0;
+  font-size: 0.95em;
+  font-weight: 600;
+  color: #e1e4e8;
+}
+
+.timeline-stats {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.timeline-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85em;
+}
+
+.stat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.stat-label {
+  color: #c9d1d9;
+}
+
+.timeline-loading,
+.timeline-empty {
+  text-align: center;
+  padding: 20px;
+  color: #808080;
+  font-size: 0.9em;
+}
+
+/* Custom Recharts Tooltip */
+.timeline-tooltip {
+  background: #1a1f2e;
+  border: 1px solid #3a4152;
+  border-radius: 6px;
+  padding: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.tooltip-label {
+  margin: 0 0 8px 0;
+  font-weight: 600;
+  color: #e1e4e8;
+  font-size: 0.85em;
+  border-bottom: 1px solid #2a3142;
+  padding-bottom: 6px;
+}
+
+.tooltip-entry {
+  margin: 4px 0;
+  font-size: 0.8em;
+  font-weight: 500;
+}
+
+.tooltip-total {
+  margin: 8px 0 0 0;
+  padding-top: 6px;
+  border-top: 1px solid #2a3142;
+  font-weight: 600;
+  color: #e1e4e8;
+  font-size: 0.8em;
+}
+
+/* Bar cursor */
+.recharts-bar-rectangle {
+  cursor: pointer;
+}
+
+.recharts-bar-rectangle:hover {
+  opacity: 0.8;
+}

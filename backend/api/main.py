@@ -539,6 +539,122 @@ async def get_stats(
     }
 
 
+@app.get("/api/timeline")
+async def get_timeline(
+    source: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    tag: List[str] = Query([]),
+    db: Session = Depends(get_db)
+):
+    """Get time-series data for events with smart binning"""
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import func as sql_func
+
+    query = db.query(ChangeEvent)
+
+    # Apply filters
+    if source:
+        query = query.filter(ChangeEvent.source == source)
+
+    if start_date:
+        start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        query = query.filter(ChangeEvent.timestamp >= start_dt)
+    else:
+        # Default to last 24 hours if no start date
+        start_dt = datetime.now(timezone.utc) - timedelta(hours=24)
+        query = query.filter(ChangeEvent.timestamp >= start_dt)
+
+    if end_date:
+        end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+        query = query.filter(ChangeEvent.timestamp <= end_dt)
+    else:
+        end_dt = datetime.now(timezone.utc)
+
+    # Filter by tags
+    if tag:
+        connections = db.query(Connection).all()
+        matching_connection_ids = []
+        for conn in connections:
+            if conn.tags:
+                conn_tags = [t.strip() for t in conn.tags.split(',') if t.strip()]
+                if any(filter_tag in conn_tags for filter_tag in tag):
+                    matching_connection_ids.append(conn.id)
+
+        if matching_connection_ids:
+            query = query.filter(ChangeEvent.connection_id.in_(matching_connection_ids))
+        else:
+            return {"bins": [], "interval": "hour", "total_events": 0}
+
+    # Always divide the time range into exactly 60 bins
+    num_bins = 60
+    time_range_seconds = (end_dt - start_dt).total_seconds()
+    bin_width_seconds = time_range_seconds / num_bins
+
+    # Calculate bin size for display purposes
+    if bin_width_seconds < 60:
+        bin_size = "second"
+    elif bin_width_seconds < 3600:
+        bin_size = "minute"
+    elif bin_width_seconds < 86400:
+        bin_size = "hour"
+    else:
+        bin_size = "day"
+
+    # Get all events in the time range
+    all_events = db.query(
+        ChangeEvent.timestamp,
+        ChangeEvent.source
+    ).filter(
+        ChangeEvent.id.in_(query.with_entities(ChangeEvent.id))
+    ).all()
+
+    # Create 60 empty bins
+    bins_dict = {}
+    for i in range(num_bins):
+        bin_start = start_dt + timedelta(seconds=i * bin_width_seconds)
+        bin_key = bin_start.isoformat()
+        bins_dict[bin_key] = {
+            "time": bin_key,
+            "total": 0,
+            "github": 0,
+            "gitlab": 0,
+            "kubernetes": 0
+        }
+
+    # Assign events to bins
+    total_events = 0
+    for event_time, source in all_events:
+        # Ensure event_time is timezone-aware
+        if event_time.tzinfo is None:
+            event_time = event_time.replace(tzinfo=timezone.utc)
+
+        # Calculate which bin this event belongs to
+        seconds_from_start = (event_time - start_dt).total_seconds()
+        bin_index = min(int(seconds_from_start / bin_width_seconds), num_bins - 1)
+
+        bin_start = start_dt + timedelta(seconds=bin_index * bin_width_seconds)
+        bin_key = bin_start.isoformat()
+
+        if bin_key in bins_dict:
+            bins_dict[bin_key][source] = bins_dict[bin_key].get(source, 0) + 1
+            bins_dict[bin_key]["total"] += 1
+            total_events += 1
+
+    # Convert to list sorted by time
+    bins_list = sorted(bins_dict.values(), key=lambda x: x["time"])
+
+    return {
+        "bins": bins_list,
+        "interval": bin_size,
+        "total_events": total_events,
+        "by_source": {source: count for source, count in
+                     db.query(ChangeEvent.source, sql_func.count(ChangeEvent.id))
+                     .filter(ChangeEvent.id.in_(query.with_entities(ChangeEvent.id)))
+                     .group_by(ChangeEvent.source).all()}
+    }
+
+
 # Team management endpoints
 @app.get("/api/teams")
 async def get_teams(db: Session = Depends(get_db)):

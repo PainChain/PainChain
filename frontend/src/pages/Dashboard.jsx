@@ -5,6 +5,7 @@ import gitlabLogo from '../assets/logos/gitlab.png'
 import kubernetesLogo from '../assets/logos/kubernetes.png'
 import DateTimePicker from '../components/DateTimePicker'
 import TagsDropdown from '../components/TagsDropdown'
+import Timeline from '../components/Timeline'
 import { isFieldVisible } from '../utils/fieldVisibility'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -771,7 +772,6 @@ const EVENT_TYPE_CONFIG = {
 function Dashboard() {
   const navigate = useNavigate()
   const [changes, setChanges] = useState([])
-  const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState(null)
@@ -862,23 +862,6 @@ function Dashboard() {
 
       // Check if there are more events to load
       setHasMore(changesData.length === limit)
-
-      // Fetch stats from backend (shows total matching filters, not just loaded)
-      const statsParams = new URLSearchParams()
-      if (sourceFilter) statsParams.append('source', sourceFilter)
-      if (startDate) statsParams.append('start_date', startDate)
-      if (endDate) statsParams.append('end_date', endDate)
-      // Append each selected tag separately
-      tagFilter.forEach(tag => statsParams.append('tag', tag))
-
-      const statsRes = await fetch(`${API_URL}/api/stats?${statsParams}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      })
-      const statsData = await statsRes.json()
-      setStats(statsData)
 
       setError(null)
     } catch (err) {
@@ -1126,20 +1109,16 @@ function Dashboard() {
         </div>
       )}
 
-      {stats && (
-        <div className="stats">
-          <div className="stat-card">
-            <h3>Total Events</h3>
-            <p className="stat-number">{stats.total_events}</p>
-          </div>
-          {Object.entries(stats.by_source).sort(([a], [b]) => a.localeCompare(b)).map(([source, count]) => (
-            <div key={source} className="stat-card">
-              <h3>{source}</h3>
-              <p className="stat-number">{count}</p>
-            </div>
-          ))}
-        </div>
-      )}
+      <Timeline
+        sourceFilter={sourceFilter}
+        startDate={startDate}
+        endDate={endDate}
+        tagFilter={tagFilter}
+        onTimeRangeChange={(newStart, newEnd) => {
+          setStartDate(newStart)
+          setEndDate(newEnd)
+        }}
+      />
 
       <div className="filters">
         <div className="filter-group">
