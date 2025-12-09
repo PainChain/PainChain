@@ -22,9 +22,9 @@ function DateTimePicker({ value, onChange, label, isEndOfDay = false }) {
         setViewYear(dt.getFullYear())
       }
     } else {
-      // Reset to current date when value is cleared
-      const now = new Date()
+      // When value is cleared, set date to null but keep time selects enabled
       setDate(null)
+      const now = new Date()
       setViewMonth(now.getMonth())
       setViewYear(now.getFullYear())
     }
@@ -174,8 +174,8 @@ function DateTimePicker({ value, onChange, label, isEndOfDay = false }) {
   // Generate hour options (00-23)
   const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
 
-  // Generate minute options (00, 15, 30, 45)
-  const minutes = ['00', '15', '30', '45']
+  // Generate minute options (00-59)
+  const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
 
   const handleToggleCalendar = () => {
     // When opening calendar without a selected date, show current month

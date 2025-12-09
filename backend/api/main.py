@@ -904,6 +904,10 @@ async def get_timeline(
     # Convert to list sorted by time
     bins_list = sorted(bins_dict.values(), key=lambda x: x["time"])
 
+    # Update the last bin's time label to end_dt so the graph extends to "now"
+    if bins_list:
+        bins_list[-1]["time"] = end_dt.isoformat()
+
     return {
         "bins": bins_list,
         "interval": bin_size,

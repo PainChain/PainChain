@@ -12,6 +12,7 @@ function Timeline({ sourceFilter, startDate, endDate, tagFilter, onTimeRangeChan
   const [interval, setInterval] = useState('hour')
   const [selectionStart, setSelectionStart] = useState(null)
   const [hoverIndex, setHoverIndex] = useState(null)
+  const [showLegend, setShowLegend] = useState(true)
   const [colors, setColors] = useState({
     github: '#00E8A0',
     gitlab: '#fc6d26',
@@ -35,8 +36,14 @@ function Timeline({ sourceFilter, startDate, endDate, tagFilter, onTimeRangeChan
 
         const params = new URLSearchParams()
         if (sourceFilter) params.append('source', sourceFilter)
-        if (startDate) params.append('start_date', startDate)
-        if (endDate) params.append('end_date', endDate)
+
+        // If no dates selected, use rolling 24-hour window (computed at fetch time)
+        const effectiveStartDate = startDate || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+        const effectiveEndDate = endDate || new Date().toISOString()
+
+        params.append('start_date', effectiveStartDate)
+        params.append('end_date', effectiveEndDate)
+
         if (tagFilter && tagFilter.length > 0) {
           tagFilter.forEach(tag => params.append('tag', tag))
         }
@@ -55,6 +62,10 @@ function Timeline({ sourceFilter, startDate, endDate, tagFilter, onTimeRangeChan
     }
 
     fetchTimeline()
+
+    // Auto-refresh timeline every 30 seconds to keep rolling window current
+    const refreshInterval = setInterval(fetchTimeline, 30000)
+    return () => clearInterval(refreshInterval)
   }, [sourceFilter, startDate, endDate, tagFilter])
 
   const handleBarClick = (data, index) => {
@@ -192,29 +203,53 @@ function Timeline({ sourceFilter, startDate, endDate, tagFilter, onTimeRangeChan
     <div className="timeline-container">
       <div className="timeline-header">
         <div className="timeline-title">
-          <h3>Events Timeline</h3>
-          {safeTimelineData.length > 0 && (
-            <span className="timeline-range">
-              {new Date(safeTimelineData[0].time).toLocaleString(undefined, {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-              {' → '}
-              {new Date(safeTimelineData[safeTimelineData.length - 1].time).toLocaleString(undefined, {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-            </span>
-          )}
-          {selectionStart !== null && (
-            <span className="timeline-instruction">
-              Click again to set time range (or click outside to cancel)
-            </span>
-          )}
+          <div className="timeline-title-left">
+            <h3>Events Timeline</h3>
+            {safeTimelineData.length > 0 && (
+              <>
+                <span className="timeline-range">
+                  {new Date(safeTimelineData[0].time).toLocaleString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                  {' → '}
+                  {new Date(safeTimelineData[safeTimelineData.length - 1].time).toLocaleString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+                <span className="timeline-info">
+                  Showing {interval === 'hour' ? 'hourly' : interval === 'day' ? 'daily' : 'per-minute'} bins • Updates every 30s
+                </span>
+              </>
+            )}
+            {selectionStart !== null && (
+              <span className="timeline-instruction">
+                Click again to set time range (or click outside to cancel)
+              </span>
+            )}
+          </div>
+          <button
+            className="legend-toggle"
+            onClick={() => setShowLegend(!showLegend)}
+            title={showLegend ? "Hide legend" : "Show legend"}
+          >
+            {showLegend ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            )}
+          </button>
         </div>
       </div>
       <div className="timeline-content">
@@ -336,14 +371,16 @@ function Timeline({ sourceFilter, startDate, endDate, tagFilter, onTimeRangeChan
         </BarChart>
       </ResponsiveContainer>
         </div>
-        <div className="timeline-legend">
-          {Object.entries(stats).sort(([a], [b]) => a.localeCompare(b)).map(([source, count]) => (
-            <div key={source} className="timeline-stat">
-              <span className="stat-dot" style={{ backgroundColor: colors[source] }}></span>
-              <span className="stat-label">{source}: {count}</span>
-            </div>
-          ))}
-        </div>
+        {showLegend && (
+          <div className="timeline-legend">
+            {Object.entries(stats).sort(([a], [b]) => a.localeCompare(b)).map(([source, count]) => (
+              <div key={source} className="timeline-stat">
+                <span className="stat-dot" style={{ backgroundColor: colors[source] }}></span>
+                <span className="stat-label">{source}: {count}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -997,20 +997,9 @@ function Dashboard() {
   const [sourceFilter, setSourceFilter] = useState('')
   const [tagFilter, setTagFilter] = useState([])
 
-  // Set default dates to last 24 hours (matching Timeline default)
-  const getDefaultStartDate = () => {
-    const now = new Date()
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-    return yesterday.toISOString()
-  }
-
-  const getDefaultEndDate = () => {
-    const now = new Date()
-    return now.toISOString()
-  }
-
-  const [startDate, setStartDate] = useState(getDefaultStartDate())
-  const [endDate, setEndDate] = useState(getDefaultEndDate())
+  // Start with no dates selected - will show rolling 24 hours by default
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [expandedEvents, setExpandedEvents] = useState(new Set())
   const [connectors, setConnectors] = useState([])
   const [teams, setTeams] = useState([])
@@ -1027,7 +1016,8 @@ function Dashboard() {
     fetchData(true)
     fetchConnections()
     fetchTeams()
-    const interval = setInterval(() => fetchData(true), 30000)
+    // Use silent refresh to avoid flashing/scrolling - only fetches offset 0 to get new events
+    const interval = setInterval(() => fetchData(false, 0, true), 30000)
     return () => clearInterval(interval)
   }, [sourceFilter, startDate, endDate, tagFilter])
 
@@ -1052,20 +1042,29 @@ function Dashboard() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [loadingMore, hasMore, offset])
 
-  const fetchData = async (reset = false, currentOffset = offset) => {
+  const fetchData = async (reset = false, currentOffset = offset, silent = false) => {
     try {
-      if (reset) {
-        setLoading(true)
-        setOffset(0)
-        currentOffset = 0
-      } else {
-        setLoadingMore(true)
+      // Silent refresh: don't show loading spinner or reset view
+      if (!silent) {
+        if (reset) {
+          setLoading(true)
+          setOffset(0)
+          currentOffset = 0
+        } else {
+          setLoadingMore(true)
+        }
       }
 
       const params = new URLSearchParams()
       if (sourceFilter) params.append('source', sourceFilter)
-      if (startDate) params.append('start_date', startDate)
-      if (endDate) params.append('end_date', endDate)
+
+      // If no dates selected, use rolling 24-hour window (computed at fetch time)
+      const effectiveStartDate = startDate || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      const effectiveEndDate = endDate || new Date().toISOString()
+
+      params.append('start_date', effectiveStartDate)
+      params.append('end_date', effectiveEndDate)
+
       // Append each selected tag separately
       tagFilter.forEach(tag => params.append('tag', tag))
       params.append('limit', limit)
@@ -1074,21 +1073,33 @@ function Dashboard() {
       const changesRes = await fetch(`${API_URL}/api/changes?${params}`)
       const changesData = await changesRes.json()
 
-      if (reset) {
+      if (silent) {
+        // Silent update: merge new data, remove duplicates, preserve scroll
+        setChanges(prev => {
+          const existingIds = new Set(prev.map(c => c.id))
+          const newChanges = changesData.filter(c => !existingIds.has(c.id))
+          // Add new changes at the top
+          return [...newChanges, ...prev]
+        })
+      } else if (reset) {
         setChanges(changesData)
       } else {
         setChanges(prev => [...prev, ...changesData])
       }
 
       // Check if there are more events to load
-      setHasMore(changesData.length === limit)
+      if (!silent) {
+        setHasMore(changesData.length === limit)
+      }
 
       setError(null)
     } catch (err) {
       setError(err.message)
     } finally {
-      setLoading(false)
-      setLoadingMore(false)
+      if (!silent) {
+        setLoading(false)
+        setLoadingMore(false)
+      }
     }
   }
 

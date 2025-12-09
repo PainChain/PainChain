@@ -12,8 +12,44 @@
 
 .timeline-title {
   display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.timeline-title-left {
+  display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.legend-toggle {
+  background: transparent;
+  border: 1px solid #3a4152;
+  border-radius: 6px;
+  padding: 8px;
+  color: #808080;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.legend-toggle:hover {
+  background: rgba(0, 232, 160, 0.1);
+  border-color: #00E8A0;
+  color: #00E8A0;
+}
+
+.legend-toggle:active {
+  background: rgba(0, 232, 160, 0.2);
+  transform: scale(0.95);
+}
+
+.legend-toggle svg {
+  display: block;
 }
 
 .timeline-header h3 {
@@ -27,6 +63,13 @@
   font-size: 0.75em;
   color: #808080;
   font-weight: 400;
+}
+
+.timeline-info {
+  font-size: 0.7em;
+  color: #606060;
+  font-weight: 400;
+  font-style: italic;
 }
 
 .timeline-instruction {
