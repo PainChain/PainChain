@@ -235,12 +235,12 @@ async def get_changes(
         # Expand filter tags to include team subscriptions
         expanded_filter_tags = set(tag)
 
-        # Check if any filter tag is a team tag
+        # Check if any filter tag is a team NAME (not just a tag in team.tags)
         # Load all teams and check in Python since Team.tags is JSON
         all_teams = db.query(Team).all()
         for filter_tag in tag:
             for team in all_teams:
-                if team.tags and filter_tag in team.tags:
+                if team.name == filter_tag and team.tags:
                     # Add all team's subscribed tags to the filter
                     expanded_filter_tags.update(team.tags)
                     break
@@ -799,6 +799,9 @@ async def get_timeline(
 
     if start_date:
         start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        # Ensure timezone-aware
+        if start_dt.tzinfo is None:
+            start_dt = start_dt.replace(tzinfo=timezone.utc)
         query = query.filter(ChangeEvent.timestamp >= start_dt)
     else:
         # Default to last 24 hours if no start date
@@ -807,6 +810,9 @@ async def get_timeline(
 
     if end_date:
         end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+        # Ensure timezone-aware
+        if end_dt.tzinfo is None:
+            end_dt = end_dt.replace(tzinfo=timezone.utc)
         query = query.filter(ChangeEvent.timestamp <= end_dt)
     else:
         end_dt = datetime.now(timezone.utc)
@@ -816,12 +822,12 @@ async def get_timeline(
         # Expand filter tags to include team subscriptions
         expanded_filter_tags = set(tag)
 
-        # Check if any filter tag is a team tag
+        # Check if any filter tag is a team NAME (not just a tag in team.tags)
         # Load all teams and check in Python since Team.tags is JSON
         all_teams = db.query(Team).all()
         for filter_tag in tag:
             for team in all_teams:
-                if team.tags and filter_tag in team.tags:
+                if team.name == filter_tag and team.tags:
                     # Add all team's subscribed tags to the filter
                     expanded_filter_tags.update(team.tags)
                     break

@@ -216,16 +216,10 @@ function Timeline({ sourceFilter, startDate, endDate, tagFilter, onTimeRangeChan
             </span>
           )}
         </div>
-        <div className="timeline-stats">
-          {Object.entries(stats).sort(([a], [b]) => a.localeCompare(b)).map(([source, count]) => (
-            <div key={source} className="timeline-stat">
-              <span className="stat-dot" style={{ backgroundColor: colors[source] }}></span>
-              <span className="stat-label">{source}: {count}</span>
-            </div>
-          ))}
-        </div>
       </div>
-      <ResponsiveContainer width="100%" height={200}>
+      <div className="timeline-content">
+        <div className="timeline-chart">
+          <ResponsiveContainer width="100%" height={200}>
         <BarChart
           data={safeTimelineData}
           margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
@@ -341,6 +335,16 @@ function Timeline({ sourceFilter, startDate, endDate, tagFilter, onTimeRangeChan
           )}
         </BarChart>
       </ResponsiveContainer>
+        </div>
+        <div className="timeline-legend">
+          {Object.entries(stats).sort(([a], [b]) => a.localeCompare(b)).map(([source, count]) => (
+            <div key={source} className="timeline-stat">
+              <span className="stat-dot" style={{ backgroundColor: colors[source] }}></span>
+              <span className="stat-label">{source}: {count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

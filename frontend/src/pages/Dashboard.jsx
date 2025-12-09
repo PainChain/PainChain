@@ -1013,6 +1013,7 @@ function Dashboard() {
   const [endDate, setEndDate] = useState(getDefaultEndDate())
   const [expandedEvents, setExpandedEvents] = useState(new Set())
   const [connectors, setConnectors] = useState([])
+  const [teams, setTeams] = useState([])
   const [expandedTags, setExpandedTags] = useState(new Set())
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
@@ -1025,6 +1026,7 @@ function Dashboard() {
     setHasMore(true)
     fetchData(true)
     fetchConnections()
+    fetchTeams()
     const interval = setInterval(() => fetchData(true), 30000)
     return () => clearInterval(interval)
   }, [sourceFilter, startDate, endDate, tagFilter])
@@ -1101,6 +1103,16 @@ function Dashboard() {
     }
   }
 
+  const fetchTeams = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/teams`)
+      const data = await response.json()
+      setTeams(data)
+    } catch (err) {
+      console.error('Failed to fetch teams:', err)
+    }
+  }
+
   const getTagsForEvent = (event) => {
     // Match by connection_id first, fallback to source type for backwards compatibility
     const connector = event.connection_id
@@ -1119,6 +1131,7 @@ function Dashboard() {
 
   const getAllTags = () => {
     const tags = new Set()
+    // Add connection tags
     connectors.forEach(connector => {
       if (connector.tags) {
         connector.tags
@@ -1126,6 +1139,20 @@ function Dashboard() {
           .map(tag => tag.trim())
           .filter(tag => tag.length > 0)
           .forEach(tag => tags.add(tag))
+      }
+    })
+    // Add team names and team tags
+    teams.forEach(team => {
+      if (team.name) {
+        tags.add(team.name)
+      }
+      // Also add all tags from the team's tags array
+      if (team.tags && Array.isArray(team.tags)) {
+        team.tags.forEach(tag => {
+          if (tag && tag.trim().length > 0) {
+            tags.add(tag.trim())
+          }
+        })
       }
     })
     return Array.from(tags).sort()

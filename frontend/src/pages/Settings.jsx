@@ -95,6 +95,7 @@ function Settings() {
   useEffect(() => {
     if (activeMenu === 'connections') {
       fetchConnections()
+      fetchTeams() // Fetch teams for search functionality
     } else if (activeMenu === 'teams') {
       fetchTeams()
     }
@@ -608,7 +609,22 @@ function Settings() {
           const tags = c.tags ? c.tags.toLowerCase().split(',').map(t => t.trim()) : []
           const matchesTags = tags.some(tag => tag.includes(query))
 
-          return matchesName || matchesType || matchesTags
+          // Search in team names and team tags
+          const connectionTags = c.tags ? c.tags.split(',').map(t => t.trim()) : []
+          const matchesTeam = teams.some(team => {
+            // Check if team name matches
+            if (team.name.toLowerCase().includes(query)) {
+              // Check if this connection has any tag that the team subscribes to
+              if (team.tags && Array.isArray(team.tags)) {
+                return team.tags.some(teamTag =>
+                  connectionTags.some(connTag => connTag.toLowerCase() === teamTag.toLowerCase())
+                )
+              }
+            }
+            return false
+          })
+
+          return matchesName || matchesType || matchesTags || matchesTeam
         })
       }
 
@@ -670,7 +686,7 @@ function Settings() {
                 <input
                   type="text"
                   className="search-input"
-                  placeholder="Search by connection name, type, or tags..."
+                  placeholder="Search by connection name, type, tags, or team..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
