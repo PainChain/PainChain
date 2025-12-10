@@ -985,6 +985,61 @@ const EVENT_TYPE_CONFIG = {
         ]
       }
     ]
+  },
+  'Image': {
+    titleMatch: '[Image]',
+    sections: [
+      {
+        title: 'Container Image Details',
+        fields: [
+          {
+            key: 'registry',
+            label: 'Registry',
+            value: (event) => event.metadata?.registry || null
+          },
+          {
+            key: 'image',
+            label: 'Image',
+            value: (event) => event.metadata?.image || null
+          },
+          {
+            key: 'size',
+            label: 'Size',
+            value: (event) => event.description?.metadata?.size || null
+          },
+          {
+            key: 'digest',
+            label: 'Digest',
+            value: (event) => event.description?.metadata?.digest_short || event.metadata?.digest?.substring(0, 12) || null
+          },
+          {
+            key: 'package',
+            label: 'Package',
+            value: (event) => event.metadata?.package || null
+          },
+          {
+            key: 'repository',
+            label: 'Repository',
+            value: (event) => event.metadata?.repository || null
+          },
+                    {
+            key: 'view',
+            label: 'View',
+            value: (event) => event.url
+              ? { type: 'html', content: <a href={event.url} target="_blank" rel="noopener noreferrer" style={{ color: '#00E8A0', textDecoration: 'none' }}>View Package →</a> }
+              : null
+          }
+        ],
+        lists: [
+          {
+            key: 'tags',
+            title: 'Tags',
+            getValue: (event) => event.description?.labels || event.metadata?.tags,
+            maxVisible: 10
+          }
+        ]
+      }
+    ]
   }
 }
 

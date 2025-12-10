@@ -1,6 +1,7 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from github import Github, GithubException
+import requests
 import sys
 sys.path.insert(0, '/app')
 
@@ -29,6 +30,84 @@ class GitHubConnector:
             return True
         except GithubException:
             return False
+
+    def _fetch_registry_packages(self, org_name: str, repo_full_name: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """
+        Fetch container packages from GitHub Container Registry for an organization
+
+        Args:
+            org_name: Organization name (e.g., "PainChain")
+            repo_full_name: Full repository name for context
+            limit: Maximum number of package versions to fetch
+
+        Returns:
+            List of package version dictionaries
+        """
+        packages = []
+
+        try:
+            # GitHub Packages API endpoint
+            headers = {
+                "Authorization": f"token {self.token}",
+                "Accept": "application/vnd.github.v3+json"
+            }
+
+            # First, list all container packages for the org
+            packages_url = f"https://api.github.com/orgs/{org_name}/packages?package_type=container"
+            response = requests.get(packages_url, headers=headers)
+
+            if response.status_code != 200:
+                print(f"  Failed to fetch packages: {response.status_code}")
+                return packages
+
+            package_list = response.json()
+
+            for package in package_list[:10]:  # Limit to 10 packages to avoid too many API calls
+                package_name = package['name']
+
+                # Get versions for this package
+                versions_url = f"https://api.github.com/orgs/{org_name}/packages/container/{package_name}/versions"
+                versions_response = requests.get(versions_url, headers=headers)
+
+                if versions_response.status_code != 200:
+                    continue
+
+                versions = versions_response.json()
+
+                # Process recent versions (limit to avoid duplicates)
+                for version in versions[:limit]:
+                    # Extract tags and metadata
+                    tags = []
+                    size_bytes = None  # GitHub API doesn't expose size in list endpoint
+
+                    if version.get('metadata') and version['metadata'].get('container'):
+                        tags = version['metadata']['container'].get('tags', [])
+
+                    # Skip untagged images (intermediate builds)
+                    if not tags or len(tags) == 0:
+                        continue
+
+                    # Note: GitHub Packages API doesn't provide image size in the versions list endpoint
+                    # Size would require fetching the manifest from the registry, which is an additional API call per version
+                    # For performance, we'll mark as None and display as "N/A" in the UI
+
+                    packages.append({
+                        'name': f"ghcr.io/{org_name.lower()}/{package_name}",
+                        'package_name': package_name,
+                        'version_id': version['id'],
+                        'tags': tags,
+                        'digest': version.get('name', ''),  # The version name is often the SHA digest
+                        'size': size_bytes,
+                        'created_at': datetime.fromisoformat(version['created_at'].replace('Z', '+00:00')),
+                        'updated_at': datetime.fromisoformat(version['updated_at'].replace('Z', '+00:00')),
+                        'url': version.get('html_url', f"https://github.com/orgs/{org_name}/packages/container/{package_name}"),
+                        'author': version.get('author', {}).get('login', 'unknown') if version.get('author') else 'unknown'
+                    })
+
+        except Exception as e:
+            print(f"  Error fetching registry packages for {org_name}: {e}")
+
+        return packages
 
     def fetch_and_store_changes(self, limit: int = 50) -> Dict[str, int]:
         """
@@ -250,6 +329,80 @@ class GitHubConnector:
                                 total_stored += 1
                     except Exception as e:
                         print(f"Error fetching workflow runs: {e}")
+
+                    # Fetch container registry packages (only for org-level repos)
+                    try:
+                        org_name = repo.full_name.split('/')[0]
+                        packages = self._fetch_registry_packages(org_name, repo.full_name)
+
+                        for pkg in packages:
+                            total_fetched += 1
+                            event_id = f"registry-{pkg['name']}-{pkg['version_id']}"
+
+                            existing = db.query(ChangeEvent).filter(
+                                ChangeEvent.source == "github",
+                                ChangeEvent.event_id == event_id
+                            ).first()
+
+                            if not existing:
+                                # Format size in human-readable format
+                                size_value = pkg.get('size')
+
+                                # Build metadata dict conditionally
+                                metadata = {
+                                    "registry": "ghcr.io",
+                                    "image": pkg['name'],
+                                    "digest_short": pkg.get('digest', '')[:12] if pkg.get('digest') else 'N/A',
+                                }
+
+                                # Only include size if available
+                                if size_value is not None and size_value > 0:
+                                    size_mb = round(size_value / (1024 * 1024), 2)
+                                    size_str = f"{size_mb}MB" if size_mb < 1024 else f"{round(size_mb/1024, 2)}GB"
+                                    metadata["size"] = size_str
+
+                                # Build text description
+                                tag_list = ', '.join(pkg.get('tags', [])[:5])
+                                text_parts = [
+                                    f"Container image pushed to GitHub Container Registry",
+                                    f"\nImage: {pkg['name']}",
+                                    f"\nTags: {tag_list}",
+                                ]
+                                if size_value is not None and size_value > 0:
+                                    text_parts.append(f"\nSize: {metadata['size']}")
+                                text_parts.append(f"\nDigest: {pkg.get('digest', 'N/A')[:19]}...")
+
+                                # Create detailed description
+                                description = {
+                                    "text": ''.join(text_parts),
+                                    "labels": pkg.get('tags', []),
+                                    "metadata": metadata,
+                                    "related_events": []
+                                }
+
+                                db_event = ChangeEvent(
+                                    source="github",
+                                    event_id=event_id,
+                                    title=f"[Image] {pkg['name']}:{', '.join(pkg.get('tags', ['<untagged>'])[:3])}",
+                                    description=description,
+                                    author=pkg.get('author', 'unknown'),
+                                    timestamp=pkg['created_at'].replace(tzinfo=timezone.utc) if pkg['created_at'].tzinfo is None else pkg['created_at'],
+                                    url=pkg.get('url', f"https://github.com/orgs/{org_name}/packages/container/{pkg['package_name']}/versions"),
+                                    status="published",
+                                    event_metadata={
+                                        "registry": "ghcr.io",
+                                        "package": pkg['package_name'],
+                                        "image": f"ghcr.io/{org_name.lower()}/{pkg['package_name']}",
+                                        "tags": pkg.get('tags', []),
+                                        "digest": pkg.get('digest', ''),
+                                        "size_bytes": pkg.get('size', 0),
+                                        "repository": repo.full_name,
+                                    }
+                                )
+                                db.add(db_event)
+                                total_stored += 1
+                    except Exception as e:
+                        print(f"Error fetching container registry packages: {e}")
 
                     db.commit()
                     print(f"  Processed {repo.full_name}")
@@ -596,6 +749,84 @@ def sync_github(db_session, config: Dict[str, Any], connection_id: int) -> Dict[
                             except GithubException as e:
                                 print(f"Error fetching commits from branch {branch_name}: {e}")
                                 continue
+
+                    # Fetch container registry packages
+                    try:
+                        org_name = repo.full_name.split('/')[0]
+                        packages = connector._fetch_registry_packages(org_name, repo.full_name)
+                        print(f"  Found {len(packages)} container package versions for {repo.full_name}")
+
+                        for pkg in packages:
+                            total_fetched += 1
+                            event_id = f"registry-{pkg['name']}-{pkg['version_id']}"
+
+                            existing = db_session.query(ChangeEvent).filter(
+                                ChangeEvent.connection_id == connection_id,
+                                ChangeEvent.event_id == event_id
+                            ).first()
+
+                            if not existing:
+                                # Format size in human-readable format
+                                size_value = pkg.get('size')
+
+                                # Build metadata dict conditionally
+                                metadata = {
+                                    "registry": "ghcr.io",
+                                    "image": pkg['name'],
+                                    "digest_short": pkg.get('digest', '')[:12] if pkg.get('digest') else 'N/A',
+                                }
+
+                                # Only include size if available
+                                if size_value is not None and size_value > 0:
+                                    size_mb = round(size_value / (1024 * 1024), 2)
+                                    size_str = f"{size_mb}MB" if size_mb < 1024 else f"{round(size_mb/1024, 2)}GB"
+                                    metadata["size"] = size_str
+
+                                # Build text description
+                                tag_list = ', '.join(pkg.get('tags', [])[:5])
+                                text_parts = [
+                                    f"Container image pushed to GitHub Container Registry",
+                                    f"\nImage: {pkg['name']}",
+                                    f"\nTags: {tag_list}",
+                                ]
+                                if size_value is not None and size_value > 0:
+                                    text_parts.append(f"\nSize: {metadata['size']}")
+                                text_parts.append(f"\nDigest: {pkg.get('digest', 'N/A')[:19]}...")
+
+                                # Create detailed description
+                                description = {
+                                    "text": ''.join(text_parts),
+                                    "labels": pkg.get('tags', []),
+                                    "metadata": metadata,
+                                    "related_events": []
+                                }
+
+                                db_event = ChangeEvent(
+                                    connection_id=connection_id,
+                                    source="github",
+                                    event_id=event_id,
+                                    title=f"[Image] {pkg['name']}:{', '.join(pkg.get('tags', ['<untagged>'])[:3])}",
+                                    description=description,
+                                    author=pkg.get('author', 'unknown'),
+                                    timestamp=pkg['created_at'].replace(tzinfo=timezone.utc) if pkg['created_at'].tzinfo is None else pkg['created_at'],
+                                    url=pkg.get('url', f"https://github.com/orgs/{org_name}/packages/container/{pkg['package_name']}/versions"),
+                                    status="published",
+                                    event_metadata={
+                                        "registry": "ghcr.io",
+                                        "package": pkg['package_name'],
+                                        "image": f"ghcr.io/{org_name.lower()}/{pkg['package_name']}",
+                                        "tags": pkg.get('tags', []),
+                                        "digest": pkg.get('digest', ''),
+                                        "size_bytes": pkg.get('size', 0),
+                                        "repository": repo.full_name,
+                                    }
+                                )
+                                db_session.add(db_event)
+                                total_stored += 1
+                    except Exception as e:
+                        print(f"Error fetching container registry packages: {e}")
+                        import traceback
+                        traceback.print_exc()
 
                     db_session.commit()
                     print(f"  Processed {repo.full_name}")

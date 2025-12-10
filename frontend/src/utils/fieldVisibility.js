@@ -54,6 +54,15 @@ const DEFAULT_FIELD_VISIBILITY = {
     draft: true,
     assets: true
   },
+  Image: {
+    registry: true,
+    image: true,
+    size: true,
+    digest: true,
+    package: true,
+    repository: true,
+    tags: true
+  },
   K8sDeployment: {
     namespace: true,
     cluster: true,
@@ -244,6 +253,15 @@ export const FIELD_LABELS = {
     draft: 'Draft Flag',
     assets: 'Release Assets'
   },
+  Image: {
+    registry: 'Registry',
+    image: 'Image Path',
+    size: 'Image Size',
+    digest: 'Digest (SHA)',
+    package: 'Package Name',
+    repository: 'Repository',
+    tags: 'Image Tags'
+  },
   K8sDeployment: {
     namespace: 'Namespace',
     cluster: 'Cluster',
@@ -338,6 +356,7 @@ export const EVENT_TYPE_NAMES = {
   Pipeline: 'Pipelines (GitLab CI)',
   Commit: 'Commits',
   Release: 'Releases',
+  Image: 'Container Images (Registry)',
   K8sDeployment: 'Kubernetes Deployments',
   K8sStatefulSet: 'Kubernetes StatefulSets',
   K8sDaemonSet: 'Kubernetes DaemonSets',

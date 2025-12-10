@@ -2,6 +2,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 import gitlab
 from gitlab.exceptions import GitlabError
+import requests
 import sys
 sys.path.insert(0, '/app')
 
@@ -26,6 +27,66 @@ class GitLabConnector:
             return True
         except GitlabError:
             return False
+
+    def _fetch_registry_repositories(self, project_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """
+        Fetch container registry repositories and tags from GitLab Container Registry
+
+        Args:
+            project_id: GitLab project ID
+            limit: Maximum number of tags to fetch per repository
+
+        Returns:
+            List of registry tag dictionaries
+        """
+        registry_items = []
+
+        try:
+            # GitLab Registry API endpoint
+            headers = {
+                "PRIVATE-TOKEN": self.token
+            }
+
+            # Get registry repositories for this project
+            repos_url = f"{self.url}/api/v4/projects/{project_id}/registry/repositories"
+            response = requests.get(repos_url, headers=headers)
+
+            if response.status_code != 200:
+                print(f"  Failed to fetch registry repositories: {response.status_code}")
+                return registry_items
+
+            repositories = response.json()
+
+            for repo in repositories:
+                repo_id = repo['id']
+                repo_path = repo['path']  # e.g., registry.gitlab.com/org/project/image
+
+                # Get tags for this repository
+                tags_url = f"{self.url}/api/v4/projects/{project_id}/registry/repositories/{repo_id}/tags"
+                tags_response = requests.get(tags_url, headers=headers)
+
+                if tags_response.status_code != 200:
+                    continue
+
+                tags = tags_response.json()
+
+                # Process recent tags
+                for tag in tags[:limit]:
+                    registry_items.append({
+                        'repository_path': repo_path,
+                        'repository_id': repo_id,
+                        'tag_name': tag['name'],
+                        'digest': tag.get('digest', ''),
+                        'revision': tag.get('revision', ''),
+                        'size': tag.get('total_size', 0),
+                        'created_at': datetime.fromisoformat(tag['created_at'].replace('Z', '+00:00')) if tag.get('created_at') else datetime.now(timezone.utc),
+                        'location': tag.get('location', repo_path),
+                    })
+
+        except Exception as e:
+            print(f"  Error fetching registry repositories for project {project_id}: {e}")
+
+        return registry_items
 
     def fetch_and_store_changes(self, limit: int = 50) -> Dict[str, int]:
         """
@@ -265,6 +326,81 @@ class GitLabConnector:
                                     print(f"Error processing pipeline {pipeline.id}: {e}")
                     except Exception as e:
                         print(f"Error fetching pipelines: {e}")
+
+                    # Fetch container registry repositories and tags
+                    try:
+                        registry_items = self._fetch_registry_repositories(project.id)
+
+                        for item in registry_items:
+                            total_fetched += 1
+                            event_id = f"registry-{item['repository_path']}-{item['tag_name']}-{item['digest'][:12]}"
+
+                            existing = db.query(ChangeEvent).filter(
+                                ChangeEvent.source == "gitlab",
+                                ChangeEvent.event_id == event_id
+                            ).first()
+
+                            if not existing:
+                                # Format size in human-readable format
+                                size_value = item.get('size', 0)
+
+                                # Build metadata dict conditionally
+                                metadata = {
+                                    "registry": "gitlab",
+                                    "image": item['repository_path'],
+                                    "digest_short": item.get('digest', '')[:12] if item.get('digest') else 'N/A'
+                                }
+
+                                # Only include size if available
+                                if size_value is not None and size_value > 0:
+                                    size_mb = round(size_value / (1024 * 1024), 2)
+                                    size_str = f"{size_mb}MB" if size_mb < 1024 else f"{round(size_mb/1024, 2)}GB"
+                                    metadata["size"] = size_str
+
+                                # Build text description
+                                text_parts = [
+                                    f"Container image pushed to GitLab Container Registry",
+                                    f"\nImage: {item['repository_path']}",
+                                    f"\nTag: {item['tag_name']}"
+                                ]
+                                if size_value is not None and size_value > 0:
+                                    text_parts.append(f"\nSize: {metadata['size']}")
+                                text_parts.append(f"\nDigest: {item.get('digest', 'N/A')[:19]}...")
+
+                                # Create detailed description
+                                description = {
+                                    "text": ''.join(text_parts),
+                                    "labels": [item['tag_name']],
+                                    "metadata": metadata,
+                                    "related_events": []
+                                }
+
+                                db_event = ChangeEvent(
+                                    source="gitlab",
+                                    event_id=event_id,
+                                    title=f"[Image] {item['repository_path']}:{item['tag_name']}",
+                                    description=description,
+                                    author="unknown",
+                                    timestamp=item['created_at'].replace(tzinfo=timezone.utc) if item['created_at'].tzinfo is None else item['created_at'],
+                                    url=item.get('location', f"{self.url}/"),
+                                    status="published",
+                                    event_metadata={
+                                        "registry": "gitlab",
+                                        "repository_path": item['repository_path'],
+                                        "repository_id": item['repository_id'],
+                                        "image": item['repository_path'],
+                                        "tag": item['tag_name'],
+                                        "tags": [item['tag_name']],
+                                        "digest": item.get('digest', ''),
+                                        "revision": item.get('revision', ''),
+                                        "size_bytes": item.get('size', 0),
+                                        "project_id": str(project.id),
+                                    }
+                                )
+                                db.add(db_event)
+                                total_stored += 1
+                    except Exception as e:
+                        print(f"Error fetching container registry: {e}")
 
                     db.commit()
                     print(f"  Processed {project.path_with_namespace}")
@@ -638,6 +774,85 @@ def sync_gitlab(db_session, config: Dict[str, Any], connection_id: int) -> Dict[
                             except GitlabError as e:
                                 print(f"Error fetching commits from branch {branch_name}: {e}")
                                 continue
+
+                    # Fetch container registry repositories and tags
+                    try:
+                        registry_items = connector._fetch_registry_repositories(project.id)
+                        print(f"  Found {len(registry_items)} container registry items for {project.path_with_namespace}")
+
+                        for item in registry_items:
+                            total_fetched += 1
+                            event_id = f"registry-{item['repository_path']}-{item['tag_name']}-{item['digest'][:12]}"
+
+                            existing = db_session.query(ChangeEvent).filter(
+                                ChangeEvent.connection_id == connection_id,
+                                ChangeEvent.event_id == event_id
+                            ).first()
+
+                            if not existing:
+                                # Format size in human-readable format
+                                size_value = item.get('size', 0)
+
+                                # Build metadata dict conditionally
+                                metadata = {
+                                    "registry": "gitlab",
+                                    "image": item['repository_path'],
+                                    "digest_short": item.get('digest', '')[:12] if item.get('digest') else 'N/A'
+                                }
+
+                                # Only include size if available
+                                if size_value is not None and size_value > 0:
+                                    size_mb = round(size_value / (1024 * 1024), 2)
+                                    size_str = f"{size_mb}MB" if size_mb < 1024 else f"{round(size_mb/1024, 2)}GB"
+                                    metadata["size"] = size_str
+
+                                # Build text description
+                                text_parts = [
+                                    f"Container image pushed to GitLab Container Registry",
+                                    f"\nImage: {item['repository_path']}",
+                                    f"\nTag: {item['tag_name']}"
+                                ]
+                                if size_value is not None and size_value > 0:
+                                    text_parts.append(f"\nSize: {metadata['size']}")
+                                text_parts.append(f"\nDigest: {item.get('digest', 'N/A')[:19]}...")
+
+                                # Create detailed description
+                                description = {
+                                    "text": ''.join(text_parts),
+                                    "labels": [item['tag_name']],
+                                    "metadata": metadata,
+                                    "related_events": []
+                                }
+
+                                db_event = ChangeEvent(
+                                    connection_id=connection_id,
+                                    source="gitlab",
+                                    event_id=event_id,
+                                    title=f"[Image] {item['repository_path']}:{item['tag_name']}",
+                                    description=description,
+                                    author="unknown",
+                                    timestamp=item['created_at'].replace(tzinfo=timezone.utc) if item['created_at'].tzinfo is None else item['created_at'],
+                                    url=item.get('location', f"{connector.url}/"),
+                                    status="published",
+                                    event_metadata={
+                                        "registry": "gitlab",
+                                        "repository_path": item['repository_path'],
+                                        "repository_id": item['repository_id'],
+                                        "image": item['repository_path'],
+                                        "tag": item['tag_name'],
+                                        "tags": [item['tag_name']],
+                                        "digest": item.get('digest', ''),
+                                        "revision": item.get('revision', ''),
+                                        "size_bytes": item.get('size', 0),
+                                        "project_id": str(project.id),
+                                    }
+                                )
+                                db_session.add(db_event)
+                                total_stored += 1
+                    except Exception as e:
+                        print(f"Error fetching container registry: {e}")
+                        import traceback
+                        traceback.print_exc()
 
                     db_session.commit()
                     print(f"  Processed {project.path_with_namespace}")
