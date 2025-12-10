@@ -10,8 +10,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 // Map connector types to their event types
 const CONNECTOR_EVENT_TYPES = {
-  github: ['PR', 'Workflow', 'Commit', 'Release'],
-  gitlab: ['MR', 'Pipeline', 'Commit', 'Release'],
+  github: ['PR', 'Workflow', 'Commit', 'Release', 'Image'],
+  gitlab: ['MR', 'Pipeline', 'Commit', 'Release', 'Image'],
   kubernetes: ['K8sDeployment', 'K8sStatefulSet', 'K8sDaemonSet', 'K8sService', 'K8sConfigMap', 'K8sSecret', 'K8sIngress'],
   painchain: ['ConnectorCreated', 'ConnectorUpdated', 'ConnectorDeleted', 'ConnectorEnabled', 'ConnectorDisabled', 'ConfigChanged', 'FieldVisibilityChanged']
 }
@@ -748,6 +748,15 @@ function Settings() {
                           <div
                             key={connection.id}
                             className={`connector-item ${selectedConnection?.id === connection.id ? 'selected' : ''}`}
+                            onClick={() => {
+                              setSelectedConnection(connection)
+                              setConfig(loadConfigFromConnection(connection))
+                              setCreatingNew(false)
+                              setTestResult(null)
+                              // Capture initial field visibility state
+                              setInitialFieldVisibility(getFieldVisibility())
+                            }}
+                            style={{ cursor: 'pointer' }}
                           >
                             <div className="connector-info">
                               <span className="connector-name">{connection.name}</span>
@@ -756,19 +765,6 @@ function Settings() {
                               <span className={connection.enabled ? "status-enabled-mini" : "status-disabled-mini"}>
                                 {connection.enabled ? "Enabled" : "Disabled"}
                               </span>
-                              <button
-                                className="btn-edit-connection"
-                                onClick={() => {
-                                  setSelectedConnection(connection)
-                                  setConfig(loadConfigFromConnection(connection))
-                                  setCreatingNew(false)
-                                  setTestResult(null)
-                                  // Capture initial field visibility state
-                                  setInitialFieldVisibility(getFieldVisibility())
-                                }}
-                              >
-                                Edit
-                              </button>
                             </div>
                           </div>
                         ))}

@@ -5,6 +5,7 @@ services:
   db:
     image: postgres:16-alpine
     container_name: painchain-db
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -26,6 +27,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: painchain-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
     healthcheck:
@@ -40,6 +42,7 @@ services:
       context: ./backend
       dockerfile: api/Dockerfile
     container_name: painchain-api
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -63,6 +66,7 @@ services:
       context: ./backend
       dockerfile: api/Dockerfile
     container_name: painchain-celery-worker
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -84,6 +88,7 @@ services:
       context: ./backend
       dockerfile: api/Dockerfile
     container_name: painchain-celery-beat
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -105,6 +110,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: painchain-frontend
+    restart: unless-stopped
     env_file:
       - .env
     environment:
