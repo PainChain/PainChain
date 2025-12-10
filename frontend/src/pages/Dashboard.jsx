@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DateTimePicker from '../components/DateTimePicker'
 import TagsDropdown from '../components/TagsDropdown'
@@ -1008,41 +1008,7 @@ function Dashboard() {
   const [hasMore, setHasMore] = useState(true)
   const limit = 50
 
-  useEffect(() => {
-    // Reset and fetch initial data when filters change
-    setOffset(0)
-    setChanges([])
-    setHasMore(true)
-    fetchData(true)
-    fetchConnections()
-    fetchTeams()
-    // Use silent refresh to avoid flashing/scrolling - only fetches offset 0 to get new events
-    const interval = setInterval(() => fetchData(false, 0, true), 30000)
-    return () => clearInterval(interval)
-  }, [sourceFilter, startDate, endDate, tagFilter])
-
-  useEffect(() => {
-    // Add scroll listener for infinite scroll
-    const handleScroll = () => {
-      if (loadingMore || !hasMore) return
-
-      const scrollHeight = document.documentElement.scrollHeight
-      const scrollTop = document.documentElement.scrollTop
-      const clientHeight = document.documentElement.clientHeight
-
-      // Load more when user is 200px from bottom
-      if (scrollHeight - scrollTop - clientHeight < 200) {
-        const newOffset = offset + limit
-        setOffset(newOffset)
-        fetchData(false, newOffset)
-      }
-    }
-
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [loadingMore, hasMore, offset])
-
-  const fetchData = async (reset = false, currentOffset = offset, silent = false) => {
+  const fetchData = useCallback(async (reset = false, currentOffset = 0, silent = false) => {
     try {
       // Silent refresh: don't show loading spinner or reset view
       if (!silent) {
@@ -1078,8 +1044,15 @@ function Dashboard() {
         setChanges(prev => {
           const existingIds = new Set(prev.map(c => c.id))
           const newChanges = changesData.filter(c => !existingIds.has(c.id))
-          // Add new changes at the top
-          return [...newChanges, ...prev]
+          const merged = [...newChanges, ...prev]
+
+          // Filter out events outside the time window (for rolling window mode)
+          if (!startDate && !endDate) {
+            const windowStart = new Date(Date.now() - 24 * 60 * 60 * 1000)
+            return merged.filter(c => new Date(c.timestamp) >= windowStart)
+          }
+
+          return merged
         })
       } else if (reset) {
         setChanges(changesData)
@@ -1101,8 +1074,41 @@ function Dashboard() {
         setLoadingMore(false)
       }
     }
-  }
+  }, [sourceFilter, startDate, endDate, tagFilter])
 
+  useEffect(() => {
+    // Reset and fetch initial data when filters change
+    setOffset(0)
+    setChanges([])
+    setHasMore(true)
+    fetchData(true)
+    fetchConnections()
+    fetchTeams()
+    // Use silent refresh to avoid flashing/scrolling - only fetches offset 0 to get new events
+    const interval = setInterval(() => fetchData(false, 0, true), 30000)
+    return () => clearInterval(interval)
+  }, [sourceFilter, startDate, endDate, tagFilter, fetchData])
+
+  useEffect(() => {
+    // Add scroll listener for infinite scroll
+    const handleScroll = () => {
+      if (loadingMore || !hasMore) return
+
+      const scrollHeight = document.documentElement.scrollHeight
+      const scrollTop = document.documentElement.scrollTop
+      const clientHeight = document.documentElement.clientHeight
+
+      // Load more when user is 200px from bottom
+      if (scrollHeight - scrollTop - clientHeight < 200) {
+        const newOffset = offset + limit
+        setOffset(newOffset)
+        fetchData(false, newOffset)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [loadingMore, hasMore, offset, fetchData])
 
   const fetchConnections = async () => {
     try {
