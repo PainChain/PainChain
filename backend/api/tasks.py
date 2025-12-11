@@ -7,9 +7,14 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 import importlib
 import logging
+import redis
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Redis client for task deduplication
+redis_client = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379/0'))
 
 
 def get_connector_module(connector_type: str):
@@ -25,51 +30,65 @@ def get_connector_module(connector_type: str):
 @celery_app.task(name='tasks.poll_connection')
 def poll_connection(connection_id: int):
     """Poll a specific connection for changes"""
-    logger.info(f"Polling connection ID: {connection_id}")
 
-    # Get database session
-    db = next(get_db())
+    # Task deduplication: Check if this connection is already being polled
+    lock_key = f"poll_lock:{connection_id}"
+    lock = redis_client.lock(lock_key, timeout=300, blocking=False)  # 5 minute timeout
+
+    if not lock.acquire(blocking=False):
+        logger.info(f"Connection {connection_id} is already being polled, skipping")
+        return {"status": "skipped", "reason": "already polling"}
 
     try:
-        # Get connection config from database
-        connection = db.query(Connection).filter(
-            Connection.id == connection_id,
-            Connection.enabled == True
-        ).first()
+        logger.info(f"Polling connection ID: {connection_id}")
 
-        if not connection:
-            logger.warning(f"Connection {connection_id} not found or disabled")
-            return {"status": "skipped", "reason": "disabled or not found"}
+        # Get database session
+        db = next(get_db())
 
-        # Get connector module
-        connector_module = get_connector_module(connection.type)
-        if not connector_module:
-            logger.error(f"Failed to load connector module for {connection.type}")
-            return {"status": "error", "reason": "module not found"}
+        try:
+            # Get connection config from database
+            connection = db.query(Connection).filter(
+                Connection.id == connection_id,
+                Connection.enabled == True
+            ).first()
 
-        # Get connector function (e.g., sync_github)
-        sync_func_name = f"sync_{connection.type}"
-        if not hasattr(connector_module, sync_func_name):
-            logger.error(f"Connector module {connection.type} missing {sync_func_name} function")
-            return {"status": "error", "reason": "sync function not found"}
+            if not connection:
+                logger.warning(f"Connection {connection_id} not found or disabled")
+                return {"status": "skipped", "reason": "disabled or not found"}
 
-        sync_func = getattr(connector_module, sync_func_name)
+            # Get connector module
+            connector_module = get_connector_module(connection.type)
+            if not connector_module:
+                logger.error(f"Failed to load connector module for {connection.type}")
+                return {"status": "error", "reason": "module not found"}
 
-        # Execute sync with connection_id
-        result = sync_func(db, connection.config, connection.id)
+            # Get connector function (e.g., sync_github)
+            sync_func_name = f"sync_{connection.type}"
+            if not hasattr(connector_module, sync_func_name):
+                logger.error(f"Connector module {connection.type} missing {sync_func_name} function")
+                return {"status": "error", "reason": "sync function not found"}
 
-        # Update last_sync timestamp
-        connection.last_sync = datetime.utcnow()
-        db.commit()
+            sync_func = getattr(connector_module, sync_func_name)
 
-        logger.info(f"Successfully polled connection {connection_id} ({connection.name}): {result}")
-        return {"status": "success", "result": result}
+            # Execute sync with connection_id
+            result = sync_func(db, connection.config, connection.id)
 
-    except Exception as e:
-        logger.error(f"Error polling connection {connection_id}: {e}")
-        return {"status": "error", "error": str(e)}
+            # Update last_sync timestamp
+            connection.last_sync = datetime.utcnow()
+            db.commit()
+
+            logger.info(f"Successfully polled connection {connection_id} ({connection.name}): {result}")
+            return {"status": "success", "result": result}
+
+        except Exception as e:
+            logger.error(f"Error polling connection {connection_id}: {e}")
+            return {"status": "error", "error": str(e)}
+        finally:
+            db.close()
     finally:
-        db.close()
+        # Release the lock
+        lock.release()
+        logger.debug(f"Released poll lock for connection {connection_id}")
 
 
 @celery_app.task(name='tasks.sync_all_connections')

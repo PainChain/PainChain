@@ -24,6 +24,7 @@ celery_app.conf.update(
     task_time_limit=30 * 60,  # 30 minutes
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=1000,
+    worker_concurrency=8,  # Increased from default 4 to handle parallel K8s watches
 )
 
 # Periodic task schedule

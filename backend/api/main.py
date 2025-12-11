@@ -18,6 +18,8 @@ CONNECTORS_DIR = Path("/app/connectors")
 
 # Pydantic models for request/response
 class ConnectionConfig(BaseModel):
+    model_config = {"extra": "allow"}  # Allow extra fields for different connector types
+
     token: str = ""
     poll_interval: int = 300
     repos: str = ""
@@ -526,19 +528,32 @@ async def test_connection(test_data: ConnectionTest):
 
         elif connector_type == 'kubernetes':
             from kubernetes import client, config as k8s_config
-            api_server = config.get('api_server')
+            import urllib3
+            # Handle both camelCase (frontend) and snake_case formats
+            api_server = config.get('api_server') or config.get('apiServer')
             token = config.get('token')
+            verify_ssl = config.get('verify_ssl', False)
+
+            print(f"Testing Kubernetes connection:")
+            print(f"  API Server: {api_server}")
+            print(f"  Token length: {len(token) if token else 0}")
+            print(f"  Verify SSL: {verify_ssl}")
 
             try:
                 if api_server and token:
                     # Use provided API server and token
+                    print("  Configuring with provided credentials...")
                     configuration = client.Configuration()
                     configuration.host = api_server
                     configuration.api_key = {"authorization": f"Bearer {token}"}
-                    configuration.verify_ssl = True
+                    configuration.verify_ssl = verify_ssl
+                    if not verify_ssl:
+                        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
                     api_client = client.ApiClient(configuration)
+                    print("  Configuration complete")
                 else:
                     # Try in-cluster config
+                    print("  Trying in-cluster config...")
                     try:
                         k8s_config.load_incluster_config()
                     except k8s_config.ConfigException:
@@ -546,8 +561,10 @@ async def test_connection(test_data: ConnectionTest):
                     api_client = client.ApiClient()
 
                 # Test connection by listing namespaces
+                print("  Testing connection by listing namespaces...")
                 v1 = client.CoreV1Api(api_client)
                 namespaces = v1.list_namespace(limit=1)
+                print(f"  Success! Found {len(namespaces.items)} namespace(s)")
 
                 return {
                     "success": True,
@@ -558,6 +575,9 @@ async def test_connection(test_data: ConnectionTest):
                     }
                 }
             except Exception as e:
+                print(f"  ERROR: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 return {"success": False, "message": f"Kubernetes connection failed: {str(e)}"}
 
         elif connector_type == 'painchain':

@@ -40,6 +40,9 @@
         "type": "number",
         "placeholder": "300",
         "default": "300",
+        "min": 60,
+        "max": 3600,
+        "help": "How often to poll for changes. Minimum: 60 seconds to avoid rate limiting.",
         "required": true
       },
       {
@@ -92,6 +95,9 @@
         "type": "number",
         "placeholder": "300",
         "default": "300",
+        "min": 60,
+        "max": 3600,
+        "help": "How often to poll for changes. Minimum: 60 seconds to avoid rate limiting.",
         "required": true
       },
       {
@@ -162,6 +168,9 @@
         "type": "number",
         "placeholder": "300",
         "default": "300",
+        "min": 10,
+        "max": 3600,
+        "help": "How often to poll for changes. Minimum: 10 seconds (watches 10 resource types in parallel).",
         "required": true
       },
       {

@@ -868,6 +868,8 @@ function Settings() {
                           value={config[field.key] || ''}
                           onChange={(e) => setConfig({...config, [field.key]: e.target.value})}
                           required={field.required}
+                          min={field.min}
+                          max={field.max}
                         />
                         {field.help && <span className="form-help">{field.help}</span>}
                       </div>
