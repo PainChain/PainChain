@@ -258,51 +258,51 @@ class GitHubConnector:
                                 ChangeEvent.event_id == event_id
                             ).first()
 
-                            if not existing:
-                                # Get job details for failed runs
-                                failed_jobs = []
-                                if run.conclusion in ['failure', 'timed_out', 'cancelled']:
-                                    try:
-                                        jobs = list(run.jobs())
-                                        for job in jobs:
-                                            if job.conclusion in ['failure', 'timed_out', 'cancelled']:
-                                                failed_jobs.append({
-                                                    "name": job.name,
-                                                    "conclusion": job.conclusion,
-                                                    "started_at": job.started_at.isoformat() if job.started_at else None,
-                                                    "completed_at": job.completed_at.isoformat() if job.completed_at else None,
-                                                })
-                                    except:
-                                        failed_jobs = []
-
-                                # Calculate duration
-                                duration_seconds = None
-                                if run.created_at and run.updated_at:
-                                    duration_seconds = (run.updated_at - run.created_at).total_seconds()
-
-                                description = {
-                                    "text": f"Workflow: {run.name}",
-                                    "labels": [],
-                                    "failed_jobs": failed_jobs,
-                                    "related_events": []
-                                }
-
-                                status_emoji = {
-                                    'success': '✓',
-                                    'failure': '✗',
-                                    'cancelled': '⊗',
-                                    'skipped': '⊘',
-                                    'timed_out': '⏱'
-                                }.get(run.conclusion, '•')
-
-                                # Get author from triggering_actor (not actor)
-                                author = "unknown"
+                            # Get job details for failed runs
+                            failed_jobs = []
+                            if run.conclusion in ['failure', 'timed_out', 'cancelled']:
                                 try:
-                                    if hasattr(run, 'triggering_actor') and run.triggering_actor:
-                                        author = run.triggering_actor.login
+                                    jobs = list(run.jobs())
+                                    for job in jobs:
+                                        if job.conclusion in ['failure', 'timed_out', 'cancelled']:
+                                            failed_jobs.append({
+                                                "name": job.name,
+                                                "conclusion": job.conclusion,
+                                                "started_at": job.started_at.isoformat() if job.started_at else None,
+                                                "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+                                            })
                                 except:
-                                    pass
+                                    failed_jobs = []
 
+                            # Calculate duration
+                            duration_seconds = None
+                            if run.created_at and run.updated_at:
+                                duration_seconds = (run.updated_at - run.created_at).total_seconds()
+
+                            description = {
+                                "text": f"Workflow: {run.name}",
+                                "labels": [],
+                                "failed_jobs": failed_jobs,
+                                "related_events": []
+                            }
+
+                            status_emoji = {
+                                'success': '✓',
+                                'failure': '✗',
+                                'cancelled': '⊗',
+                                'skipped': '⊘',
+                                'timed_out': '⏱'
+                            }.get(run.conclusion, '•')
+
+                            # Get author from triggering_actor (not actor)
+                            author = "unknown"
+                            try:
+                                if hasattr(run, 'triggering_actor') and run.triggering_actor:
+                                    author = run.triggering_actor.login
+                            except:
+                                pass
+
+                            if not existing:
                                 db_event = ChangeEvent(
                                     source="github",
                                     event_id=event_id,
@@ -327,6 +327,28 @@ class GitHubConnector:
                                 )
                                 db.add(db_event)
                                 total_stored += 1
+                            else:
+                                # Update existing workflow run if conclusion has changed
+                                current_conclusion = existing.event_metadata.get('conclusion')
+                                if current_conclusion != run.conclusion and run.conclusion is not None:
+                                    existing.title = f"[Workflow] {status_emoji} {run.name} - {run.head_branch}"
+                                    existing.description = description
+                                    existing.status = run.conclusion or run.status
+                                    existing.timestamp = run.updated_at.replace(tzinfo=timezone.utc) if run.updated_at and run.updated_at.tzinfo is None else (run.updated_at or datetime.now(timezone.utc))
+                                    existing.event_metadata = {
+                                        "repository": repo.full_name,
+                                        "workflow_id": run.workflow_id,
+                                        "run_number": run.run_number,
+                                        "run_attempt": run.run_attempt,
+                                        "event": run.event,
+                                        "branch": run.head_branch,
+                                        "commit_sha": run.head_sha[:7],
+                                        "conclusion": run.conclusion,
+                                        "duration_seconds": duration_seconds,
+                                        "failed_jobs_count": len(failed_jobs),
+                                    }
+                                    total_stored += 1
+                                    print(f"  Updated workflow run {run.run_number}: {current_conclusion} -> {run.conclusion}")
                     except Exception as e:
                         print(f"Error fetching workflow runs: {e}")
 
@@ -616,51 +638,51 @@ def sync_github(db_session, config: Dict[str, Any], connection_id: int) -> Dict[
                                 ChangeEvent.event_id == event_id
                             ).first()
 
-                            if not existing:
-                                # Get job details for failed runs
-                                failed_jobs = []
-                                if run.conclusion in ['failure', 'timed_out', 'cancelled']:
-                                    try:
-                                        jobs = list(run.jobs())
-                                        for job in jobs:
-                                            if job.conclusion in ['failure', 'timed_out', 'cancelled']:
-                                                failed_jobs.append({
-                                                    "name": job.name,
-                                                    "conclusion": job.conclusion,
-                                                    "started_at": job.started_at.isoformat() if job.started_at else None,
-                                                    "completed_at": job.completed_at.isoformat() if job.completed_at else None,
-                                                })
-                                    except:
-                                        failed_jobs = []
-
-                                # Calculate duration if both timestamps exist
-                                duration_seconds = None
-                                if run.created_at and run.updated_at:
-                                    duration_seconds = (run.updated_at - run.created_at).total_seconds()
-
-                                description = {
-                                    "text": f"Workflow: {run.name}",
-                                    "labels": [],
-                                    "failed_jobs": failed_jobs,
-                                    "related_events": []
-                                }
-
-                                status_emoji = {
-                                    'success': '✓',
-                                    'failure': '✗',
-                                    'cancelled': '⊗',
-                                    'skipped': '⊘',
-                                    'timed_out': '⏱'
-                                }.get(run.conclusion, '•')
-
-                                # Get author from triggering_actor (not actor)
-                                author = "unknown"
+                            # Get job details for failed runs
+                            failed_jobs = []
+                            if run.conclusion in ['failure', 'timed_out', 'cancelled']:
                                 try:
-                                    if hasattr(run, 'triggering_actor') and run.triggering_actor:
-                                        author = run.triggering_actor.login
+                                    jobs = list(run.jobs())
+                                    for job in jobs:
+                                        if job.conclusion in ['failure', 'timed_out', 'cancelled']:
+                                            failed_jobs.append({
+                                                "name": job.name,
+                                                "conclusion": job.conclusion,
+                                                "started_at": job.started_at.isoformat() if job.started_at else None,
+                                                "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+                                            })
                                 except:
-                                    pass
+                                    failed_jobs = []
 
+                            # Calculate duration if both timestamps exist
+                            duration_seconds = None
+                            if run.created_at and run.updated_at:
+                                duration_seconds = (run.updated_at - run.created_at).total_seconds()
+
+                            description = {
+                                "text": f"Workflow: {run.name}",
+                                "labels": [],
+                                "failed_jobs": failed_jobs,
+                                "related_events": []
+                            }
+
+                            status_emoji = {
+                                'success': '✓',
+                                'failure': '✗',
+                                'cancelled': '⊗',
+                                'skipped': '⊘',
+                                'timed_out': '⏱'
+                            }.get(run.conclusion, '•')
+
+                            # Get author from triggering_actor (not actor)
+                            author = "unknown"
+                            try:
+                                if hasattr(run, 'triggering_actor') and run.triggering_actor:
+                                    author = run.triggering_actor.login
+                            except:
+                                pass
+
+                            if not existing:
                                 db_event = ChangeEvent(
                                     connection_id=connection_id,
                                     source="github",
@@ -688,7 +710,29 @@ def sync_github(db_session, config: Dict[str, Any], connection_id: int) -> Dict[
                                 total_stored += 1
                                 workflow_stored += 1
                             else:
-                                workflow_existing += 1
+                                # Update existing workflow run if conclusion has changed
+                                current_conclusion = existing.event_metadata.get('conclusion')
+                                if current_conclusion != run.conclusion and run.conclusion is not None:
+                                    existing.title = f"[Workflow] {status_emoji} {run.name} - {run.head_branch}"
+                                    existing.description = description
+                                    existing.status = run.conclusion or run.status
+                                    existing.timestamp = run.updated_at.replace(tzinfo=timezone.utc) if run.updated_at and run.updated_at.tzinfo is None else (run.updated_at or datetime.now(timezone.utc))
+                                    existing.event_metadata = {
+                                        "repository": repo.full_name,
+                                        "workflow_id": run.workflow_id,
+                                        "run_number": run.run_number,
+                                        "run_attempt": run.run_attempt,
+                                        "event": run.event,
+                                        "branch": run.head_branch,
+                                        "commit_sha": run.head_sha[:7],
+                                        "conclusion": run.conclusion,
+                                        "duration_seconds": duration_seconds,
+                                        "failed_jobs_count": len(failed_jobs),
+                                    }
+                                    workflow_stored += 1
+                                    print(f"  Updated workflow run {run.run_number}: {current_conclusion} -> {run.conclusion}")
+                                else:
+                                    workflow_existing += 1
                         print(f"  Workflows: {workflow_stored} stored, {workflow_existing} already existed")
                     except Exception as e:
                         print(f"Error fetching workflow runs: {e}")
