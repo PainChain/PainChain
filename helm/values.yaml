@@ -1,0 +1,112 @@
+# Default values for painchain
+# This mirrors the docker-compose.yml setup
+
+# Global settings
+global:
+  imagePullPolicy: Always
+
+# Namespace configuration
+namespace:
+  create: false
+  name: painchain
+
+# PostgreSQL Database
+postgresql:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "16-alpine"
+  auth:
+    database: painchain
+    username: painchain
+    password: changeme  # Override this in production
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+
+# Redis
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7-alpine"
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 50m
+
+# API Service
+api:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/painchain/painchain-api
+    tag: main
+  service:
+    type: ClusterIP
+    port: 8000
+  env:
+    REDIS_URL: "redis://painchain-redis:6379/0"
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+
+# Celery Worker
+celeryWorker:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/painchain/painchain-api
+    tag: main
+  env:
+    REDIS_URL: "redis://painchain-redis:6379/0"
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+
+# Celery Beat (Scheduler)
+celeryBeat:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/painchain/painchain-api
+    tag: main
+  env:
+    REDIS_URL: "redis://painchain-redis:6379/0"
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+
+# Frontend
+frontend:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/painchain/painchain-frontend
+    tag: main
+  service:
+    type: ClusterIP
+    port: 5174
+  # API URL for the frontend
+  # For local port-forwarding: use "http://localhost:8000"
+  # For ingress/production: use your ingress URL or internal service name
+  apiUrl: "http://localhost:8000"
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+
+  tls: []
+  # Example TLS configuration:
+  # tls:
+  #   - secretName: painchain-tls
+  #     hosts:
+  #       - painchain.example.com

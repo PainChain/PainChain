@@ -56,3 +56,49 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
+
+  publish-helm-main:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Convert repository owner to lowercase
+        id: repo_owner
+        run: echo "lowercase=${OWNER,,}" >> $GITHUB_OUTPUT
+        env:
+          OWNER: ${{ github.repository_owner }}
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package and push Helm chart (main)
+        run: |
+          cd helm
+
+          echo "📦 Packaging Helm chart for bleeding edge (main)"
+
+          # Temporarily set version to 0.0.0-main
+          sed -i 's/^version:.*/version: 0.0.0-main/' Chart.yaml
+
+          helm package .
+          helm push painchain-0.0.0-main.tgz oci://${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.lowercase }}/charts
+
+          echo "✅ Successfully pushed painchain:0.0.0-main to GHCR"
+          echo ""
+          echo "🔧 Install bleeding edge with:"
+          echo "  helm install painchain oci://${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.lowercase }}/charts/painchain --version 0.0.0-main"
