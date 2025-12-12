@@ -77,11 +77,13 @@ jobs:
 
       - name: Validate Helm templates
         run: |
-          helm template painchain helm --debug --namespace painchain > /tmp/rendered.yaml
+          helm template painchain helm --debug --namespace painchain > rendered.yaml
           echo "✅ Templates rendered successfully"
+          echo "Rendered manifest preview:"
+          head -30 rendered.yaml
 
       - name: Validate Kubernetes manifests
         uses: instrumenta/kubeval-action@master
         with:
-          files: /tmp/rendered.yaml
+          files: rendered.yaml
           ignore_missing_schemas: true
