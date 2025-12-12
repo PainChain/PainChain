@@ -1,0 +1,46 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "painchain.fullname" . }}
+  labels:
+    {{- include "painchain.labels" . | nindent 4 }}
+rules:
+# Allow reading cluster-wide resources for change tracking
+- apiGroups: [""]
+  resources:
+    - namespaces
+    - services
+    - configmaps
+    - secrets
+    - persistentvolumes
+    - persistentvolumeclaims
+  verbs: ["get", "list", "watch"]
+
+# Allow reading workload resources
+- apiGroups: ["apps"]
+  resources:
+    - deployments
+    - statefulsets
+    - daemonsets
+    - replicasets
+  verbs: ["get", "list", "watch"]
+
+# Allow reading networking resources
+- apiGroups: ["networking.k8s.io"]
+  resources:
+    - ingresses
+    - networkpolicies
+  verbs: ["get", "list", "watch"]
+
+# Allow reading batch resources
+- apiGroups: ["batch"]
+  resources:
+    - jobs
+    - cronjobs
+  verbs: ["get", "list", "watch"]
+
+# Allow reading events for change detection
+- apiGroups: [""]
+  resources:
+    - events
+  verbs: ["get", "list", "watch"]

@@ -1,0 +1,89 @@
+name: Lint and Test Chart
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'helm/Chart.yaml'
+      - 'helm/values.yaml'
+      - 'helm/templates/**'
+      - '.github/workflows/helm-test.yml'
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          check-latest: true
+
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.6.1
+
+      - name: Run chart-testing (list-changed)
+        id: list-changed
+        run: |
+          changed=$(ct list-changed --chart-dirs helm --target-branch ${{ github.event.repository.default_branch }})
+          if [[ -n "$changed" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run chart-testing (lint)
+        if: steps.list-changed.outputs.changed == 'true'
+        run: ct lint --chart-dirs helm --target-branch ${{ github.event.repository.default_branch }}
+
+      - name: Create kind cluster
+        if: steps.list-changed.outputs.changed == 'true'
+        uses: helm/kind-action@v1.10.0
+
+      - name: Run chart-testing (install)
+        if: steps.list-changed.outputs.changed == 'true'
+        run: ct install --chart-dirs helm --target-branch ${{ github.event.repository.default_branch }}
+
+  helm-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run helm-docs
+        uses: docker://jnorwood/helm-docs:v1.13.1
+        with:
+          args: --dry-run --chart-search-root helm
+
+  validate-templates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Validate Helm templates
+        run: |
+          helm template painchain helm --debug --namespace painchain > rendered.yaml
+          echo "✅ Templates rendered successfully"
+          echo "Rendered manifest preview:"
+          head -30 rendered.yaml
+
+      - name: Validate Kubernetes manifests
+        uses: instrumenta/kubeval-action@master
+        with:
+          files: rendered.yaml
+          ignore_missing_schemas: true
