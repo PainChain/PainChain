@@ -1735,6 +1735,16 @@ function Dashboard() {
                       </div>
                     )}
 
+                    {change.source === 'kubernetes' && (change.metadata?.cluster || change.metadata?.namespace || change.description?.namespace) && (
+                      <div className="change-repo">
+                        {change.metadata?.cluster && <span>Cluster: {change.metadata.cluster}</span>}
+                        {change.metadata?.cluster && (change.metadata?.namespace || change.description?.namespace) && <span> • </span>}
+                        {(change.metadata?.namespace || change.description?.namespace) && (
+                          <span>Namespace: {change.metadata.namespace || change.description.namespace}</span>
+                        )}
+                      </div>
+                    )}
+
                     {isExpanded && renderEnrichedData(change)}
 
                     <div className="change-footer">
