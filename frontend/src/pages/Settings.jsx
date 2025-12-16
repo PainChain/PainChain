@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import '../Settings.css'
-import { getFieldVisibility, toggleField, resetToDefaults, FIELD_LABELS, EVENT_TYPE_NAMES } from '../utils/fieldVisibility'
+import { getFieldVisibility, toggleField, resetToDefaults, FIELD_LABELS, EVENT_TYPE_NAMES, loadFieldVisibilityDefaults } from '../utils/fieldVisibility'
 import { useToast } from '../components/Toast'
-import { getConnectorTypes, getConnectorLogoUrl } from '../utils/connectorMetadata'
-import connectorConfigs from '../config/connectorConfigs.json'
+import { getConnectorTypes, getConnectorLogoUrl, loadConnectorMetadata } from '../utils/connectorMetadata'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -40,23 +39,35 @@ function Settings() {
   const [testResult, setTestResult] = useState(null)
   const [connectorTypes, setConnectorTypes] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [connectorMetadata, setConnectorMetadata] = useState({})
 
-  // Load connector types on mount
+  // Load connector types and metadata on mount
   useEffect(() => {
     const loadTypes = async () => {
       const types = await getConnectorTypes()
       setConnectorTypes(types)
+
+      // Load full metadata for all connectors
+      const metadata = await loadConnectorMetadata()
+      const metadataMap = {}
+      metadata.forEach(m => {
+        metadataMap[m.id] = m
+      })
+      setConnectorMetadata(metadataMap)
+
+      // Load field visibility defaults from metadata
+      await loadFieldVisibilityDefaults()
     }
     loadTypes()
   }, [])
 
   // Helper to initialize config from connector definition
   const initializeConfig = (connectorType) => {
-    const connectorDef = connectorConfigs[connectorType]
-    if (!connectorDef) return {}
+    const connectorDef = connectorMetadata[connectorType]
+    if (!connectorDef?.connectionForm?.fields) return {}
 
     const initialConfig = { enabled: false }
-    connectorDef.fields.forEach(field => {
+    connectorDef.connectionForm.fields.forEach(field => {
       if (field.type === 'checkbox') {
         initialConfig[field.key] = field.default === true || field.default === 'true'
       } else if (field.type === 'checkbox-group') {
@@ -70,11 +81,11 @@ function Settings() {
 
   // Helper to load config from connection data
   const loadConfigFromConnection = (connection) => {
-    const connectorDef = connectorConfigs[connection.type]
-    if (!connectorDef) return {}
+    const connectorDef = connectorMetadata[connection.type]
+    if (!connectorDef?.connectionForm?.fields) return {}
 
     const loadedConfig = { enabled: connection.enabled }
-    connectorDef.fields.forEach(field => {
+    connectorDef.connectionForm.fields.forEach(field => {
       if (field.key === 'name') {
         loadedConfig[field.key] = connection.name || ''
       } else if (field.key === 'tags') {
@@ -227,11 +238,16 @@ function Settings() {
       setSaving(true)
 
       const connectorType = creatingNew ? newConnectionType : selectedConnection.type
-      const connectorDef = connectorConfigs[connectorType]
+      const connectorDef = connectorMetadata[connectorType]
+
+      if (!connectorDef?.connectionForm?.fields) {
+        showToast('Connector definition not loaded', 'error')
+        return
+      }
 
       // Build config object dynamically (exclude name, tags, enabled as they're top-level)
       const apiConfig = {}
-      connectorDef.fields.forEach(field => {
+      connectorDef.connectionForm.fields.forEach(field => {
         if (field.key !== 'name' && field.key !== 'tags' && field.key !== 'enabled') {
           let value = config[field.key]
 
@@ -452,9 +468,9 @@ function Settings() {
 
   const handleTestConnection = async () => {
     const connectorType = creatingNew ? newConnectionType : selectedConnection?.type
-    const connectorDef = connectorConfigs[connectorType]
+    const connectorDef = connectorMetadata[connectorType]
 
-    if (!connectorDef) return
+    if (!connectorDef?.connectionForm?.fields) return
 
     setTesting(true)
     setTestResult(null)
@@ -462,7 +478,7 @@ function Settings() {
     try {
       // Build config object for test
       const testConfig = {}
-      connectorDef.fields.forEach(field => {
+      connectorDef.connectionForm.fields.forEach(field => {
         if (field.key !== 'name' && field.key !== 'tags') {
           let value = config[field.key]
 
@@ -799,11 +815,11 @@ function Settings() {
                 <h4>Configuration</h4>
                 {(() => {
                   const connectorType = creatingNew ? newConnectionType : selectedConnection?.type
-                  const connectorDef = connectorConfigs[connectorType]
+                  const connectorDef = connectorMetadata[connectorType]
 
-                  if (!connectorDef) return null
+                  if (!connectorDef?.connectionForm?.fields) return null
 
-                  return connectorDef.fields.map((field) => {
+                  return connectorDef.connectionForm.fields.map((field) => {
                     // Handle conditional fields
                     if (field.conditionalOn) {
                       const conditionMet = config[field.conditionalOn] === true || config[field.conditionalOn] === 'true'

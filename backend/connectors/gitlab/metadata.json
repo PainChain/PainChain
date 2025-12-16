@@ -3,5 +3,116 @@
   "displayName": "GitLab",
   "color": "#fc6d26",
   "logo": "gitlab.png",
-  "description": "Track merge requests, releases, pipeline runs, and commits from GitLab projects"
+  "description": "Track merge requests, releases, pipeline runs, and commits from GitLab projects",
+  "connectionForm": {
+    "fields": [
+      {
+        "key": "name",
+        "label": "Connection Name",
+        "type": "text",
+        "placeholder": "e.g., Company GitLab, Personal Projects",
+        "required": true
+      },
+      {
+        "key": "token",
+        "label": "Token",
+        "type": "password",
+        "placeholder": "Enter GitLab Personal Access Token",
+        "required": true
+      },
+      {
+        "key": "pollInterval",
+        "label": "Poll Interval (seconds)",
+        "type": "number",
+        "placeholder": "300",
+        "default": "300",
+        "min": 60,
+        "max": 3600,
+        "help": "How often to poll for changes. Minimum: 60 seconds to avoid rate limiting.",
+        "required": true
+      },
+      {
+        "key": "repos",
+        "label": "Project IDs",
+        "type": "text",
+        "placeholder": "76910432,12345678",
+        "help": "Comma-separated numeric project IDs (recommended) or project paths (group/project). Leave empty for all projects. Find Project ID in GitLab project settings.",
+        "required": false
+      },
+      {
+        "key": "branches",
+        "label": "Branches",
+        "type": "text",
+        "placeholder": "main,develop,staging",
+        "help": "Comma-separated branch names to track commits from.",
+        "required": false
+      },
+      {
+        "key": "tags",
+        "label": "Tags",
+        "type": "text",
+        "placeholder": "tag1,tag2,tag3",
+        "help": "Comma-separated tags for filtering events by team.",
+        "required": false
+      }
+    ]
+  },
+  "eventTypes": {
+    "MR": {
+      "displayName": "Merge Requests (GitLab)",
+      "fields": {
+        "branches": { "defaultVisibility": true, "fieldLabel": "Branch Information" },
+        "approved_by": { "defaultVisibility": true, "fieldLabel": "Approved By" },
+        "approvals": { "defaultVisibility": true, "fieldLabel": "Approval Count" },
+        "comments": { "defaultVisibility": true, "fieldLabel": "Comments Count" },
+        "votes": { "defaultVisibility": true, "fieldLabel": "Votes (Up/Down)" },
+        "merged": { "defaultVisibility": true, "fieldLabel": "Merge Status" },
+        "files_changed": { "defaultVisibility": true, "fieldLabel": "Files Changed List" }
+      }
+    },
+    "Pipeline": {
+      "displayName": "Pipelines (GitLab CI)",
+      "fields": {
+        "status": { "defaultVisibility": true, "fieldLabel": "Status" },
+        "duration": { "defaultVisibility": true, "fieldLabel": "Duration" },
+        "ref": { "defaultVisibility": true, "fieldLabel": "Reference" },
+        "commit": { "defaultVisibility": true, "fieldLabel": "Commit SHA" },
+        "source": { "defaultVisibility": true, "fieldLabel": "Source" },
+        "pipeline_id": { "defaultVisibility": true, "fieldLabel": "Pipeline ID" },
+        "failed_jobs": { "defaultVisibility": true, "fieldLabel": "Failed Jobs Count" },
+        "failed_jobs_detail": { "defaultVisibility": true, "fieldLabel": "Failed Jobs Details" },
+        "logs": { "defaultVisibility": true, "fieldLabel": "View Logs Link" }
+      }
+    },
+    "Commit": {
+      "displayName": "Commits",
+      "fields": {
+        "branch": { "defaultVisibility": true, "fieldLabel": "Branch" },
+        "sha": { "defaultVisibility": true, "fieldLabel": "Commit SHA" },
+        "changes": { "defaultVisibility": true, "fieldLabel": "Code Changes" },
+        "files_changed": { "defaultVisibility": true, "fieldLabel": "Files Changed List" }
+      }
+    },
+    "Release": {
+      "displayName": "Releases",
+      "fields": {
+        "tag": { "defaultVisibility": true, "fieldLabel": "Tag Name" },
+        "prerelease": { "defaultVisibility": true, "fieldLabel": "Pre-release Flag" },
+        "draft": { "defaultVisibility": true, "fieldLabel": "Draft Flag" },
+        "assets": { "defaultVisibility": true, "fieldLabel": "Release Assets" }
+      }
+    },
+    "Image": {
+      "displayName": "Container Images (Registry)",
+      "fields": {
+        "registry": { "defaultVisibility": true, "fieldLabel": "Registry" },
+        "image": { "defaultVisibility": true, "fieldLabel": "Image Path" },
+        "size": { "defaultVisibility": true, "fieldLabel": "Image Size" },
+        "digest": { "defaultVisibility": true, "fieldLabel": "Digest (SHA)" },
+        "package": { "defaultVisibility": true, "fieldLabel": "Package Name" },
+        "repository": { "defaultVisibility": true, "fieldLabel": "Repository" },
+        "tags": { "defaultVisibility": true, "fieldLabel": "Image Tags" }
+      }
+    }
+  }
 }

@@ -3,5 +3,87 @@
   "displayName": "PainChain",
   "color": "#00E8A0",
   "logo": "painchain_transparent.png",
-  "description": "Internal system connector that tracks configuration changes and connector management actions"
+  "description": "Internal system connector that tracks configuration changes and connector management actions",
+  "connectionForm": {
+    "fields": [
+      {
+        "key": "name",
+        "label": "Connection Name",
+        "type": "text",
+        "placeholder": "PainChain System",
+        "default": "PainChain System",
+        "required": true
+      },
+      {
+        "key": "tags",
+        "label": "Tags",
+        "type": "text",
+        "placeholder": "system,audit,changes",
+        "help": "Comma-separated tags for filtering events by team.",
+        "required": false
+      }
+    ]
+  },
+  "eventTypes": {
+    "ConnectorCreated": {
+      "displayName": "Connector Created (PainChain)",
+      "fields": {
+        "connector_name": { "defaultVisibility": true, "fieldLabel": "Connector Name" },
+        "connector_type": { "defaultVisibility": true, "fieldLabel": "Connector Type" },
+        "action": { "defaultVisibility": true, "fieldLabel": "Action" }
+      }
+    },
+    "ConnectorUpdated": {
+      "displayName": "Connector Updated (PainChain)",
+      "fields": {
+        "connector_name": { "defaultVisibility": true, "fieldLabel": "Connector Name" },
+        "connector_type": { "defaultVisibility": true, "fieldLabel": "Connector Type" },
+        "changes": { "defaultVisibility": true, "fieldLabel": "Changes Made" },
+        "action": { "defaultVisibility": true, "fieldLabel": "Action" }
+      }
+    },
+    "ConnectorDeleted": {
+      "displayName": "Connector Deleted (PainChain)",
+      "fields": {
+        "connector_name": { "defaultVisibility": true, "fieldLabel": "Connector Name" },
+        "connector_type": { "defaultVisibility": true, "fieldLabel": "Connector Type" },
+        "action": { "defaultVisibility": true, "fieldLabel": "Action" }
+      }
+    },
+    "ConnectorEnabled": {
+      "displayName": "Connector Enabled (PainChain)",
+      "fields": {
+        "connector_name": { "defaultVisibility": true, "fieldLabel": "Connector Name" },
+        "connector_type": { "defaultVisibility": true, "fieldLabel": "Connector Type" },
+        "action": { "defaultVisibility": true, "fieldLabel": "Action" }
+      }
+    },
+    "ConnectorDisabled": {
+      "displayName": "Connector Disabled (PainChain)",
+      "fields": {
+        "connector_name": { "defaultVisibility": true, "fieldLabel": "Connector Name" },
+        "connector_type": { "defaultVisibility": true, "fieldLabel": "Connector Type" },
+        "action": { "defaultVisibility": true, "fieldLabel": "Action" }
+      }
+    },
+    "ConfigChanged": {
+      "displayName": "Config Changed (PainChain)",
+      "fields": {
+        "connector_name": { "defaultVisibility": true, "fieldLabel": "Connector Name" },
+        "field": { "defaultVisibility": true, "fieldLabel": "Field Changed" },
+        "old_value": { "defaultVisibility": true, "fieldLabel": "Old Value" },
+        "new_value": { "defaultVisibility": true, "fieldLabel": "New Value" },
+        "action": { "defaultVisibility": true, "fieldLabel": "Action" }
+      }
+    },
+    "FieldVisibilityChanged": {
+      "displayName": "Field Visibility Changed (PainChain)",
+      "fields": {
+        "event_type": { "defaultVisibility": true, "fieldLabel": "Event Type" },
+        "field": { "defaultVisibility": true, "fieldLabel": "Field" },
+        "visible": { "defaultVisibility": true, "fieldLabel": "Visible" },
+        "action": { "defaultVisibility": true, "fieldLabel": "Action" }
+      }
+    }
+  }
 }

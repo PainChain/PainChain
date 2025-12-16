@@ -1,6 +1,7 @@
-// Default field visibility configuration
-// All fields are visible by default
-const DEFAULT_FIELD_VISIBILITY = {
+import { loadConnectorMetadata } from './connectorMetadata'
+
+// Build default field visibility from connector metadata
+let DEFAULT_FIELD_VISIBILITY = {
   PR: {
     branches: true,
     changes: true,
@@ -151,6 +152,48 @@ const DEFAULT_FIELD_VISIBILITY = {
 }
 
 const STORAGE_KEY = 'painchain_field_visibility'
+
+// Load defaults from connector metadata (async)
+let metadataLoaded = false
+export const loadFieldVisibilityDefaults = async () => {
+  if (metadataLoaded) return
+
+  try {
+    const metadata = await loadConnectorMetadata()
+    const newDefaults = {}
+    const newLabels = {}
+    const newNames = {}
+
+    // Merge eventTypes from all connectors
+    metadata.forEach(connector => {
+      if (connector.eventTypes) {
+        Object.entries(connector.eventTypes).forEach(([eventType, config]) => {
+          newDefaults[eventType] = {}
+          newLabels[eventType] = {}
+
+          // Parse new fields format: { fieldKey: { defaultVisibility, fieldLabel } }
+          if (config.fields) {
+            Object.entries(config.fields).forEach(([fieldKey, fieldConfig]) => {
+              newDefaults[eventType][fieldKey] = fieldConfig.defaultVisibility ?? true
+              newLabels[eventType][fieldKey] = fieldConfig.fieldLabel || fieldKey
+            })
+          }
+
+          newNames[eventType] = config.displayName || eventType
+        })
+      }
+    })
+
+    // Update global variables
+    DEFAULT_FIELD_VISIBILITY = newDefaults
+    Object.assign(FIELD_LABELS, newLabels)
+    Object.assign(EVENT_TYPE_NAMES, newNames)
+
+    metadataLoaded = true
+  } catch (error) {
+    console.error('Error loading field visibility defaults from metadata:', error)
+  }
+}
 
 export const getFieldVisibility = () => {
   try {

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import DateTimePicker from '../components/DateTimePicker'
 import TagsDropdown from '../components/TagsDropdown'
 import Timeline from '../components/Timeline'
-import { isFieldVisible } from '../utils/fieldVisibility'
+import { isFieldVisible, loadFieldVisibilityDefaults } from '../utils/fieldVisibility'
 import { getConnectorLogoUrl } from '../utils/connectorMetadata'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -1366,6 +1366,11 @@ function Dashboard() {
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const limit = 50
+
+  // Load field visibility defaults from connector metadata on mount
+  useEffect(() => {
+    loadFieldVisibilityDefaults()
+  }, [])
 
   const fetchData = useCallback(async (reset = false, currentOffset = 0, silent = false) => {
     try {

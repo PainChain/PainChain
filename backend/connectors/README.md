@@ -4,21 +4,36 @@ This directory contains all connector implementations for PainChain. Each connec
 
 ## Architecture
 
-Connectors are **automatically discovered** by the backend and frontend through the `metadata.json` file in each connector folder. When you add a new connector, no frontend code changes are required!
+Connectors use a **hybrid discovery system**: backend metadata is auto-discovered, but frontend configuration requires manual setup for event display and connection forms.
 
 ### How It Works
 
+**Auto-Discovered (Backend):**
 1. **Backend** - Scans `/app/connectors/` directory for folders containing `metadata.json`
 2. **API Endpoint** - `/api/connectors/metadata` returns all connector metadata
 3. **Frontend** - Loads metadata on startup and dynamically:
    - Generates CSS classes for event badges (`.source-badge.{connector-id}`)
    - Loads connector logos from backend
-   - Populates Settings UI with available connectors
    - Applies colors to timeline visualization
+
+**Manual Configuration (Frontend):**
+- Connection form fields (`connectorConfigs.json`)
+- Event type display configurations (`Dashboard.jsx`)
+- Field visibility settings (`fieldVisibility.js`)
+
+**Why Hybrid?** Full automation would require a complex schema system for defining UI forms and field rendering logic. The manual approach provides maximum flexibility for custom event displays and validation while still auto-discovering backend metadata.
 
 ## Adding a New Connector
 
-To add a new connector to PainChain, follow these steps:
+Adding a connector requires both **backend implementation** (steps 1-7) and **frontend configuration** (steps 8-9):
+
+### Backend Steps (Auto-Discovered)
+1-7: Create connector folder, metadata, logo, and implementation
+
+### Frontend Steps (Manual Configuration)
+8-9: Configure connection form and event display
+
+**Overview:**
 
 ### 1. Create Connector Folder
 
@@ -270,7 +285,9 @@ if __name__ == "__main__":
     main()
 ```
 
-### 8. Add Connector Configuration (Frontend)
+### 8. Add Connector Configuration (Frontend - Required)
+
+**Why manual?** The connection form needs to know what fields to display (API keys, URLs, poll intervals, etc.) and validation rules specific to your connector.
 
 Create configuration schema in `/frontend/src/config/connectorConfigs.json`:
 
@@ -322,7 +339,9 @@ Create configuration schema in `/frontend/src/config/connectorConfigs.json`:
 }
 ```
 
-### 9. Register Event Types (Frontend)
+### 9. Register Event Types (Frontend - Required)
+
+**Why manual?** Each connector produces different event types with unique data structures. The frontend needs to know how to display each event type's specific fields.
 
 Add event type configurations in `/frontend/src/pages/Dashboard.jsx`:
 

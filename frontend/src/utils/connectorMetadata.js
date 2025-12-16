@@ -29,13 +29,8 @@ export const loadConnectorMetadata = async () => {
     return cachedMetadata
   } catch (error) {
     console.error('Error loading connector metadata:', error)
-    // Return fallback metadata
-    return [
-      { id: 'github', displayName: 'GitHub', color: '#00E8A0', logo: 'github.png' },
-      { id: 'gitlab', displayName: 'GitLab', color: '#fc6d26', logo: 'gitlab.png' },
-      { id: 'kubernetes', displayName: 'Kubernetes', color: '#326ce5', logo: 'kubernetes.png' },
-      { id: 'painchain', displayName: 'PainChain', color: '#9f7aea', logo: 'painchain_transparent.png' }
-    ]
+    // Return empty array - all metadata should come from backend
+    return []
   }
 }
 

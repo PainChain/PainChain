@@ -3,5 +3,137 @@
   "displayName": "Kubernetes",
   "color": "#326ce5",
   "logo": "kubernetes.png",
-  "description": "Track deployments, statefulsets, daemonsets, services, configmaps, secrets, and ingresses from Kubernetes clusters"
+  "description": "Track deployments, statefulsets, daemonsets, services, configmaps, secrets, and ingresses from Kubernetes clusters",
+  "connectionForm": {
+    "fields": [
+      {
+        "key": "name",
+        "label": "Connection Name",
+        "type": "text",
+        "placeholder": "e.g., Production Cluster, Staging K8s",
+        "required": true
+      },
+      {
+        "key": "apiServer",
+        "label": "API Server URL",
+        "type": "text",
+        "placeholder": "https://kubernetes.default.svc or https://api.cluster.com:6443",
+        "help": "Kubernetes API server URL. Leave empty to use in-cluster configuration.",
+        "required": false
+      },
+      {
+        "key": "token",
+        "label": "Service Account Token",
+        "type": "password",
+        "placeholder": "Enter service account token",
+        "help": "Bearer token for authentication. Leave empty to use in-cluster service account.",
+        "required": false
+      },
+      {
+        "key": "clusterName",
+        "label": "Cluster Name",
+        "type": "text",
+        "placeholder": "production",
+        "default": "default",
+        "help": "Cluster identifier for tagging and organization.",
+        "required": true
+      },
+      {
+        "key": "pollInterval",
+        "label": "Poll Interval (seconds)",
+        "type": "number",
+        "placeholder": "300",
+        "default": "300",
+        "min": 10,
+        "max": 3600,
+        "help": "How often to poll for changes. Minimum: 10 seconds (watches 10 resource types in parallel).",
+        "required": true
+      },
+      {
+        "key": "namespaces",
+        "label": "Namespaces",
+        "type": "text",
+        "placeholder": "default,kube-system,prod",
+        "help": "Comma-separated list of namespaces to monitor. Leave empty to monitor all namespaces.",
+        "required": false
+      },
+      {
+        "key": "tags",
+        "label": "Tags",
+        "type": "text",
+        "placeholder": "tag1,tag2,tag3",
+        "help": "Comma-separated tags for filtering events by team.",
+        "required": false
+      }
+    ]
+  },
+  "eventTypes": {
+    "K8sDeployment": {
+      "displayName": "Kubernetes Deployments",
+      "fields": {
+        "namespace": { "defaultVisibility": true, "fieldLabel": "Namespace" },
+        "cluster": { "defaultVisibility": true, "fieldLabel": "Cluster" },
+        "replicas": { "defaultVisibility": true, "fieldLabel": "Replicas Status" },
+        "strategy": { "defaultVisibility": true, "fieldLabel": "Deployment Strategy" },
+        "images": { "defaultVisibility": true, "fieldLabel": "Container Images" }
+      }
+    },
+    "K8sStatefulSet": {
+      "displayName": "Kubernetes StatefulSets",
+      "fields": {
+        "namespace": { "defaultVisibility": true, "fieldLabel": "Namespace" },
+        "cluster": { "defaultVisibility": true, "fieldLabel": "Cluster" },
+        "replicas": { "defaultVisibility": true, "fieldLabel": "Replicas Status" },
+        "service_name": { "defaultVisibility": true, "fieldLabel": "Service Name" },
+        "images": { "defaultVisibility": true, "fieldLabel": "Container Images" }
+      }
+    },
+    "K8sDaemonSet": {
+      "displayName": "Kubernetes DaemonSets",
+      "fields": {
+        "namespace": { "defaultVisibility": true, "fieldLabel": "Namespace" },
+        "cluster": { "defaultVisibility": true, "fieldLabel": "Cluster" },
+        "scheduled": { "defaultVisibility": true, "fieldLabel": "Pods Status" },
+        "images": { "defaultVisibility": true, "fieldLabel": "Container Images" }
+      }
+    },
+    "K8sService": {
+      "displayName": "Kubernetes Services",
+      "fields": {
+        "namespace": { "defaultVisibility": true, "fieldLabel": "Namespace" },
+        "cluster": { "defaultVisibility": true, "fieldLabel": "Cluster" },
+        "type": { "defaultVisibility": true, "fieldLabel": "Service Type" },
+        "cluster_ip": { "defaultVisibility": true, "fieldLabel": "Cluster IP" },
+        "ports": { "defaultVisibility": true, "fieldLabel": "Ports" }
+      }
+    },
+    "K8sConfigMap": {
+      "displayName": "Kubernetes ConfigMaps",
+      "fields": {
+        "namespace": { "defaultVisibility": true, "fieldLabel": "Namespace" },
+        "cluster": { "defaultVisibility": true, "fieldLabel": "Cluster" },
+        "num_keys": { "defaultVisibility": true, "fieldLabel": "Number of Keys" },
+        "keys": { "defaultVisibility": true, "fieldLabel": "Keys List" }
+      }
+    },
+    "K8sSecret": {
+      "displayName": "Kubernetes Secrets",
+      "fields": {
+        "namespace": { "defaultVisibility": true, "fieldLabel": "Namespace" },
+        "cluster": { "defaultVisibility": true, "fieldLabel": "Cluster" },
+        "type": { "defaultVisibility": true, "fieldLabel": "Secret Type" },
+        "num_keys": { "defaultVisibility": true, "fieldLabel": "Number of Keys" },
+        "keys": { "defaultVisibility": true, "fieldLabel": "Keys List" }
+      }
+    },
+    "K8sIngress": {
+      "displayName": "Kubernetes Ingresses",
+      "fields": {
+        "namespace": { "defaultVisibility": true, "fieldLabel": "Namespace" },
+        "cluster": { "defaultVisibility": true, "fieldLabel": "Cluster" },
+        "ingress_class": { "defaultVisibility": true, "fieldLabel": "Ingress Class" },
+        "hosts": { "defaultVisibility": true, "fieldLabel": "Hosts" }
+      }
+    }
+  }
 }
