@@ -26,11 +26,11 @@ To access your application:
   echo "Visit http://127.0.0.1:{{ .Values.frontend.service.port }} to use your application"
 {{- end }}
 
-2. Get the API URL by running:
+2. Get the Backend API URL by running:
 
-{{- if eq .Values.api.service.type "ClusterIP" }}
-  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "painchain.fullname" . }}-api {{ .Values.api.service.port }}:{{ .Values.api.service.port }}
-  echo "API available at http://127.0.0.1:{{ .Values.api.service.port }}"
+{{- if eq .Values.backend.service.type "ClusterIP" }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "painchain.fullname" . }}-backend {{ .Values.backend.service.port }}:{{ .Values.backend.service.port }}
+  echo "API available at http://127.0.0.1:{{ .Values.backend.service.port }}"
 {{- end }}
 
 Database credentials:
