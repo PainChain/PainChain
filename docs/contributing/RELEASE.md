@@ -85,10 +85,11 @@ docker compose ps
 
 ### 3. Test Core Functionality
 
-1. **Frontend**: Navigate to http://localhost:5173
+1. **Frontend**: Navigate to http://localhost (port 80)
    - Should load the dashboard
    - Check that timeline renders
    - Verify filters work
+   - Test SPA routing (refresh on a route should work)
 
 2. **API**: Test http://localhost:8000/docs
    - Swagger UI should load
@@ -109,20 +110,26 @@ docker compose ps
 Build images as they would be in production:
 
 ```bash
-# Build without volume mounts
-docker build -t painchain-api:test -f backend/api/Dockerfile backend/
-docker build -t painchain-frontend:test -f frontend/Dockerfile frontend/
+# Build backend (from repository root)
+docker build -t painchain-backend:test -f apps/backend/Dockerfile .
+
+# Build frontend (from frontend directory)
+cd frontend
+docker build -t painchain-frontend:test .
+cd ..
 
 # Run production builds
 docker run -d -p 8000:8000 \
   -e DATABASE_URL=postgresql://... \
-  -e REDIS_URL=redis://... \
-  painchain-api:test
+  -e REDIS_HOST=redis \
+  -e REDIS_PORT=6379 \
+  painchain-backend:test
 
-docker run -d -p 5173:5173 \
-  -e VITE_API_URL=http://localhost:8000 \
+docker run -d -p 80:80 \
   painchain-frontend:test
 ```
+
+**Note**: Frontend now serves on port 80 via nginx in production mode.
 
 ## Release Process
 
@@ -206,7 +213,7 @@ docker run -d ghcr.io/<owner>/painchain-api:v0.2.0
 
 All images are published to GitHub Container Registry (ghcr.io):
 
-- **API**: `ghcr.io/<owner>/painchain-api`
+- **Backend**: `ghcr.io/<owner>/painchain-backend`
 - **Frontend**: `ghcr.io/<owner>/painchain-frontend`
 
 ### Image Tags
@@ -220,6 +227,8 @@ All images are published to GitHub Container Registry (ghcr.io):
 Images are built for:
 - `linux/amd64` (x86_64)
 - `linux/arm64` (ARM64, Apple Silicon)
+
+**Note**: Images use Alpine Linux 3.20 to ensure compatibility with ARM64 QEMU emulation during builds. See [DOCKER_BUILD_UPGRADE.md](./DOCKER_BUILD_UPGRADE.md) for details.
 
 ## Version Numbering
 

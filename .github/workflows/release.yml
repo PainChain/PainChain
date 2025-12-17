@@ -22,9 +22,11 @@ jobs:
           - name: backend
             context: .
             dockerfile: ./apps/backend/Dockerfile
+            build_args: ""
           - name: frontend
             context: ./frontend
             dockerfile: ./frontend/Dockerfile
+            build_args: ""
 
     steps:
       - name: Checkout repository

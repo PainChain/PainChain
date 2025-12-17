@@ -1,9 +1,10 @@
 # Backend Dockerfile for PainChain NestJS API
-FROM node:20-alpine AS base
+# Use Alpine 3.20 to avoid busybox QEMU issues on ARM64
+FROM node:20-alpine3.20 AS base
 
 # Install OpenSSL (required by Prisma) and pnpm
-RUN apk add --no-cache openssl openssl-dev
-RUN npm install -g pnpm@8.15.0
+RUN apk add --no-cache openssl openssl-dev && \
+    npm install -g pnpm@8.15.0
 
 # Build stage
 FROM base AS builder
