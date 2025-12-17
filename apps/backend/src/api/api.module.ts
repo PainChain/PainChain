@@ -5,6 +5,8 @@ import { ConnectorsController } from './connectors.controller'
 import { ConnectionsController } from './connections.controller'
 import { ChangesController } from './changes.controller'
 import { TeamsController } from './teams.controller'
+import { PainchainController } from './painchain.controller'
+import { TimelineController } from './timeline.controller'
 
 @Module({
   imports: [ConnectorsModule, QueueModule],
@@ -13,6 +15,8 @@ import { TeamsController } from './teams.controller'
     ConnectionsController,
     ChangesController,
     TeamsController,
+    PainchainController,
+    TimelineController,
   ],
 })
 export class ApiModule {}

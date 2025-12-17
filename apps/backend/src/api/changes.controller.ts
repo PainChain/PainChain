@@ -50,6 +50,18 @@ export class ChangesController {
       include: { connection: true },
     })
 
-    return changes
+    // Transform data to match frontend expectations
+    return changes.map((change) => ({
+      ...change,
+      // Add snake_case connection_id for frontend compatibility
+      connection_id: change.connectionId,
+      // Merge eventMetadata into metadata for frontend compatibility
+      metadata: {
+        ...(change.metadata as any),
+        ...(change.eventMetadata as any),
+      },
+      // Extract author to top level
+      author: (change.metadata as any)?.author || 'unknown',
+    }))
   }
 }

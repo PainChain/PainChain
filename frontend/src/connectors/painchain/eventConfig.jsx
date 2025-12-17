@@ -115,17 +115,17 @@ export const painchainEventConfig = {
           {
             key: 'connector_name',
             label: 'Connector Name',
-            value: (event) => event.description?.connector_name
+            value: (event) => event.metadata?.connector_name || event.description?.connector_name
           },
           {
             key: 'connector_type',
             label: 'Connector Type',
-            value: (event) => event.description?.connector_type
+            value: (event) => event.metadata?.connector_type || event.description?.connector_type
           },
           {
-            key: 'action',
-            label: 'Action',
-            value: (event) => event.metadata?.action || 'enable'
+            key: 'status',
+            label: 'Status',
+            value: (event) => 'Enabled'
           }
         ]
       }
@@ -140,17 +140,17 @@ export const painchainEventConfig = {
           {
             key: 'connector_name',
             label: 'Connector Name',
-            value: (event) => event.description?.connector_name
+            value: (event) => event.metadata?.connector_name || event.description?.connector_name
           },
           {
             key: 'connector_type',
             label: 'Connector Type',
-            value: (event) => event.description?.connector_type
+            value: (event) => event.metadata?.connector_type || event.description?.connector_type
           },
           {
-            key: 'action',
-            label: 'Action',
-            value: (event) => event.metadata?.action || 'disable'
+            key: 'status',
+            label: 'Status',
+            value: (event) => 'Disabled'
           }
         ]
       }
@@ -227,6 +227,31 @@ export const painchainEventConfig = {
             key: 'action',
             label: 'Action',
             value: (event) => event.metadata?.action || 'field_visibility_change'
+          }
+        ]
+      }
+    ]
+  },
+  'System': {
+    titleMatch: 'Test',  // Matches "Test event" and other system events
+    sections: [
+      {
+        title: 'Event Details',
+        fields: [
+          {
+            key: 'event_type',
+            label: 'Event Type',
+            value: (event) => event.metadata?.event_type || event.eventType || 'system'
+          },
+          {
+            key: 'description',
+            label: 'Description',
+            value: (event) => event.description || event.metadata?.description
+          },
+          {
+            key: 'status',
+            label: 'Status',
+            value: (event) => event.status || event.metadata?.status
           }
         ]
       }
