@@ -2,8 +2,8 @@ apiVersion: v2
 name: painchain
 description: A Helm chart for PainChain - Change tracking and visualization platform
 type: application
-version: 0.1.1
-appVersion: "0.1.1"
+version: 0.2.1
+appVersion: "0.2.1"
 keywords:
   - painchain
   - change-tracking
