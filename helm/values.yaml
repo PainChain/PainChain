@@ -29,7 +29,7 @@ postgresql:
         memory: 256Mi
         cpu: 100m
 
-# Redis
+# Redis (used for caching/sessions)
 redis:
   enabled: true
   image:
@@ -40,50 +40,23 @@ redis:
       memory: 128Mi
       cpu: 50m
 
-# API Service
-api:
+# Backend Service (NestJS)
+backend:
   enabled: true
   replicaCount: 1
   image:
-    repository: ghcr.io/painchain/painchain-api
+    repository: ghcr.io/painchain/painchain-backend
     tag: main
   service:
     type: ClusterIP
     port: 8000
   env:
     REDIS_URL: "redis://painchain-redis:6379/0"
+    NODE_ENV: "production"
   resources:
     requests:
       memory: 512Mi
       cpu: 250m
-
-# Celery Worker
-celeryWorker:
-  enabled: true
-  replicaCount: 1
-  image:
-    repository: ghcr.io/painchain/painchain-api
-    tag: main
-  env:
-    REDIS_URL: "redis://painchain-redis:6379/0"
-  resources:
-    requests:
-      memory: 512Mi
-      cpu: 250m
-
-# Celery Beat (Scheduler)
-celeryBeat:
-  enabled: true
-  replicaCount: 1
-  image:
-    repository: ghcr.io/painchain/painchain-api
-    tag: main
-  env:
-    REDIS_URL: "redis://painchain-redis:6379/0"
-  resources:
-    requests:
-      memory: 256Mi
-      cpu: 100m
 
 # Frontend
 frontend:
