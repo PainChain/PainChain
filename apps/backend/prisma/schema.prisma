@@ -1,0 +1,81 @@
+// Prisma Schema for PainChain
+//
+// This schema defines the database structure for storing
+// change events, connections, and team associations.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ChangeEvent {
+  id             Int      @id @default(autoincrement())
+  connectionId   Int      @map("connection_id")
+  externalId     String?  @map("external_id")
+  source         String
+  eventType      String   @map("event_type")
+  title          String
+  description    String?  @db.Text
+  timestamp      DateTime
+  url            String?
+  status         String?
+  metadata       Json     @default("{}")
+  eventMetadata  Json     @default("{}") @map("event_metadata")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  connection Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, externalId], name: "connection_id_external_id")
+  @@index([connectionId])
+  @@index([source])
+  @@index([eventType])
+  @@index([timestamp])
+  @@map("change_events")
+}
+
+model Connection {
+  id         Int       @id @default(autoincrement())
+  name       String
+  type       String
+  config     Json
+  enabled    Boolean   @default(true)
+  tags       String?
+  lastSync   DateTime? @map("last_sync")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  events ChangeEvent[]
+  teams  TeamConnection[]
+
+  @@map("connections")
+}
+
+model Team {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?  @db.Text
+  tags        String[] @default([])
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  connections TeamConnection[]
+
+  @@map("teams")
+}
+
+model TeamConnection {
+  id           Int @id @default(autoincrement())
+  teamId       Int @map("team_id")
+  connectionId Int @map("connection_id")
+
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  connection Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, connectionId])
+  @@map("team_connections")
+}

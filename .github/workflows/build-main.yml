@@ -19,9 +19,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: api
-            context: ./backend
-            dockerfile: ./backend/api/Dockerfile
+          - name: backend
+            context: .
+            dockerfile: ./apps/backend/Dockerfile
           - name: frontend
             context: ./frontend
             dockerfile: ./frontend/Dockerfile

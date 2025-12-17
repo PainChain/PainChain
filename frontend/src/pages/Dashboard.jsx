@@ -446,6 +446,14 @@ function Dashboard() {
             <option value="kubernetes">Kubernetes</option>
           </select>
         </div>
+        <div className="filter-group">
+          <label>Tags:</label>
+          <TagsDropdown
+            availableTags={getAllTags()}
+            selectedTags={tagFilter}
+            onChange={setTagFilter}
+          />
+        </div>
         <DateTimePicker
           value={startDate}
           onChange={setStartDate}
@@ -458,14 +466,6 @@ function Dashboard() {
           label="End Date"
           isEndOfDay={true}
         />
-        <div className="filter-group">
-          <label>Tags:</label>
-          <TagsDropdown
-            availableTags={getAllTags()}
-            selectedTags={tagFilter}
-            onChange={setTagFilter}
-          />
-        </div>
       </div>
 
       <div className="changes-list">
