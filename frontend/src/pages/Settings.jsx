@@ -11,7 +11,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 const CONNECTOR_EVENT_TYPES = {
   github: ['PR', 'Workflow', 'Commit', 'Release', 'Image'],
   gitlab: ['MR', 'Pipeline', 'Commit', 'Release', 'Image'],
-  kubernetes: ['K8sDeployment', 'K8sStatefulSet', 'K8sDaemonSet', 'K8sService', 'K8sConfigMap', 'K8sSecret', 'K8sIngress'],
+  kubernetes: ['K8sDeployment', 'K8sStatefulSet', 'K8sDaemonSet', 'K8sService', 'K8sConfigMap', 'K8sSecret', 'K8sIngress', 'K8sHelmRelease', 'K8sPod', 'K8sRole', 'K8sRoleBinding', 'K8sEvent'],
   painchain: ['ConnectorCreated', 'ConnectorUpdated', 'ConnectorDeleted', 'ConnectorEnabled', 'ConnectorDisabled', 'ConfigChanged', 'FieldVisibilityChanged']
 }
 

@@ -41,6 +41,7 @@ export type EventType =
   | 'K8sRole'
   | 'K8sRoleBinding'
   | 'K8sHelmRelease'
+  | 'K8sEvent'
   // PainChain internal
   | 'ConnectorCreated'
   | 'ConnectorUpdated'
