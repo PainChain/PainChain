@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import '../Settings.css'
 import { getFieldVisibility, toggleField, resetToDefaults, FIELD_LABELS, EVENT_TYPE_NAMES, loadFieldVisibilityDefaults } from '../utils/fieldVisibility'
@@ -43,6 +43,7 @@ function Settings() {
   const [showWebhookGuide, setShowWebhookGuide] = useState(false)
   const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false)
   const [copiedSecret, setCopiedSecret] = useState(false)
+  const [preGeneratedConnectionId, setPreGeneratedConnectionId] = useState(null)
 
   // Load connector types and metadata on mount
   useEffect(() => {
@@ -268,13 +269,14 @@ function Settings() {
       })
 
       if (creatingNew) {
-        // Create new connection
+        // Create new connection with pre-generated ID
         const response = await fetch(`${API_URL}/api/connections`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            id: preGeneratedConnectionId, // Use pre-generated ID
             name: config.name,
             type: newConnectionType,
             enabled: config.enabled,
@@ -288,6 +290,7 @@ function Settings() {
           setCreatingNew(false)
           setNewConnectionType('')
           setConfig({})
+          setPreGeneratedConnectionId(null) // Clear pre-generated ID
           showToast('Connection created successfully!')
 
           // Log PainChain event
@@ -605,9 +608,20 @@ function Settings() {
     setCreatingNew(true)
     setNewConnectionType(type)
     setSelectedConnection(null)
-    setConfig(initializeConfig(type))
+    const initialConfig = initializeConfig(type)
+
+    // Auto-generate webhook secret for GitHub and GitLab
+    if (type === 'github' || type === 'gitlab') {
+      initialConfig.webhookSecret = generateWebhookSecret()
+    }
+
+    // Pre-generate a connection ID so webhook URL is ready immediately
+    const newConnectionId = generateConnectionId()
+    setPreGeneratedConnectionId(newConnectionId)
+
+    setConfig(initialConfig)
     setTestResult(null)
-    setShowWebhookGuide(true) // Auto-expand webhook guide for new connections
+    setShowWebhookGuide(false) // Don't show expandable guide for new connections
     // Capture initial field visibility state
     setInitialFieldVisibility(getFieldVisibility())
   }
@@ -638,6 +652,16 @@ function Settings() {
       secret += chars.charAt(Math.floor(Math.random() * chars.length))
     }
     return secret
+  }
+
+  const generateConnectionId = () => {
+    // Generate a random 8-character ID
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    let id = ''
+    for (let i = 0; i < 8; i++) {
+      id += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return id
   }
 
   const groupConnectionsByType = () => {
@@ -851,12 +875,21 @@ function Settings() {
 
                   if (!connectorDef?.connectionForm?.fields) return null
 
-                  return connectorDef.connectionForm.fields.map((field) => {
+                  return connectorDef.connectionForm.fields.map((field, index) => {
                     // Handle conditional fields
                     if (field.conditionalOn) {
                       const conditionMet = config[field.conditionalOn] === true || config[field.conditionalOn] === 'true'
                       if (!conditionMet) return null
                     }
+
+                    // When creating new GitHub/GitLab connection, skip webhookSecret field (will be in webhook setup)
+                    if (creatingNew && (connectorType === 'github' || connectorType === 'gitlab') && field.key === 'webhookSecret') {
+                      return null
+                    }
+
+                    // Render inline webhook setup after name field for new GitHub/GitLab connections
+                    const isNameField = field.key === 'name'
+                    const shouldShowWebhookSetup = creatingNew && (connectorType === 'github' || connectorType === 'gitlab') && isNameField
 
                     // Render checkbox fields differently
                     if (field.type === 'checkbox') {
@@ -907,27 +940,99 @@ function Settings() {
 
                     // Render regular input fields
                     return (
-                      <div key={field.key} className="form-group">
-                        <label>{field.label}</label>
-                        <input
-                          type={field.type}
-                          placeholder={field.placeholder}
-                          className="form-input"
-                          value={config[field.key] || ''}
-                          onChange={(e) => setConfig({...config, [field.key]: e.target.value})}
-                          required={field.required}
-                          min={field.min}
-                          max={field.max}
-                        />
-                        {field.help && <span className="form-help">{field.help}</span>}
-                      </div>
+                      <React.Fragment key={field.key}>
+                        <div className="form-group">
+                          <label>{field.label}</label>
+                          <input
+                            type={field.type}
+                            placeholder={field.placeholder}
+                            className="form-input"
+                            value={config[field.key] || ''}
+                            onChange={(e) => setConfig({...config, [field.key]: e.target.value})}
+                            required={field.required}
+                            min={field.min}
+                            max={field.max}
+                          />
+                          {field.help && <span className="form-help">{field.help}</span>}
+                        </div>
+
+                        {/* Inline webhook setup after name field for new connections */}
+                        {shouldShowWebhookSetup && (
+                          <div className="webhook-setup-inline">
+                            <h4>Webhook Setup</h4>
+                            <p className="section-description">Configure webhooks to receive real-time updates</p>
+
+                            {/* Webhook URL */}
+                            <div className="form-group">
+                              <label>Webhook URL</label>
+                              <div className="webhook-url-container">
+                                <code className="webhook-url">
+                                  {window.location.protocol}//{window.location.host}/api/webhooks/{connectorType}/{preGeneratedConnectionId}
+                                </code>
+                                <button
+                                  className="btn-copy"
+                                  onClick={() => copyToClipboard(
+                                    `${window.location.protocol}//${window.location.host}/api/webhooks/${connectorType}/${preGeneratedConnectionId}`,
+                                    setCopiedWebhookUrl
+                                  )}
+                                >
+                                  {copiedWebhookUrl ? '✓ Copied' : 'Copy'}
+                                </button>
+                              </div>
+                              <span className="form-help">This is your permanent webhook URL. You can configure it in {connectorTypes.find(t => t.id === connectorType)?.name} now.</span>
+                            </div>
+
+                            {/* Webhook Secret */}
+                            <div className="form-group">
+                              <label>Webhook Secret</label>
+                              <div className="webhook-secret-container">
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={config.webhookSecret || ''}
+                                  onChange={(e) => setConfig({...config, webhookSecret: e.target.value})}
+                                  placeholder="Auto-generated secret"
+                                  readOnly
+                                />
+                                <button
+                                  className="btn-generate"
+                                  onClick={() => setConfig({...config, webhookSecret: generateWebhookSecret()})}
+                                >
+                                  Regenerate
+                                </button>
+                                {config.webhookSecret && (
+                                  <button
+                                    className="btn-copy"
+                                    onClick={() => copyToClipboard(config.webhookSecret, setCopiedSecret)}
+                                  >
+                                    {copiedSecret ? '✓ Copied' : 'Copy'}
+                                  </button>
+                                )}
+                              </div>
+                              <span className="form-help">Copy this secret and use it when configuring the webhook in {connectorTypes.find(t => t.id === connectorType)?.name}</span>
+                            </div>
+
+                            {/* Quick instructions */}
+                            <div className="webhook-info-box">
+                              <p><strong>Next steps:</strong></p>
+                              <div className="webhook-instructions-list">
+                                <p>1. Copy the webhook URL and secret above</p>
+                                <p>2. Go to your {connectorTypes.find(t => t.id === connectorType)?.name} repository settings → Webhooks</p>
+                                <p>3. Add a new webhook with the URL and secret from above</p>
+                                <p>4. Select which events to send (we recommend: Push, Pull/Merge Requests, Releases)</p>
+                                <p>5. Save this connection - the webhook will start working immediately!</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </React.Fragment>
                     )
                   })
                 })()}
               </div>
 
-              {/* Webhook Setup Section */}
-              {(newConnectionType === 'github' || newConnectionType === 'gitlab' || selectedConnection?.type === 'github' || selectedConnection?.type === 'gitlab') && (
+              {/* Webhook Setup Section - Removed for existing connections, webhookSecret shows as normal field */}
+              {false && !creatingNew && (selectedConnection?.type === 'github' || selectedConnection?.type === 'gitlab') && (
                 <div className="config-section webhook-setup-section">
                   <div
                     className="webhook-header"

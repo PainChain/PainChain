@@ -4,7 +4,6 @@ import {
   Param,
   Headers,
   Body,
-  ParseIntPipe,
   NotFoundException,
   BadRequestException,
   HttpCode,
@@ -31,20 +30,20 @@ export class WebhooksController {
     private readonly prisma: PrismaService
   ) {}
 
-  @Post('github/:connectionId')
+  @Post('github/:webhookId')
   @HttpCode(HttpStatus.OK)
   async handleGitHub(
-    @Param('connectionId', ParseIntPipe) connectionId: number,
+    @Param('webhookId') webhookId: string,
     @Headers('x-hub-signature-256') signature: string | undefined,
     @Headers('x-github-event') eventType: string | undefined,
     @Body() payload: any,
     @Req() req: Request & { rawBody?: Buffer }
   ) {
-    this.logger.log(`Received GitHub ${eventType} webhook for connection ${connectionId}`)
+    this.logger.log(`Received GitHub ${eventType} webhook for webhookId ${webhookId}`)
 
     // 1. Load connection and verify signature
     const connection = await this.prisma.connection.findUnique({
-      where: { id: connectionId },
+      where: { webhookId },
     })
 
     if (!connection) {
@@ -60,7 +59,7 @@ export class WebhooksController {
     }
 
     if (!connection.enabled) {
-      this.logger.warn(`Webhook received for disabled connection ${connectionId}`)
+      this.logger.warn(`Webhook received for disabled connection ${connection.id}`)
       return { success: true, message: 'Connection is disabled' }
     }
 
@@ -73,7 +72,7 @@ export class WebhooksController {
       throw new BadRequestException('Missing X-GitHub-Event header')
     }
 
-    const event = this.githubTransformer.transform(payload, eventType, connectionId)
+    const event = this.githubTransformer.transform(payload, eventType, connection.id)
 
     if (!event) {
       this.logger.debug(`Skipping unsupported GitHub event type: ${eventType}`)
@@ -85,12 +84,12 @@ export class WebhooksController {
 
     // 4. Update connection.lastWebhook
     await this.prisma.connection.update({
-      where: { id: connectionId },
+      where: { id: connection.id },
       data: { lastWebhook: new Date() },
     })
 
     this.logger.log(
-      `GitHub webhook processed: connectionId=${connectionId}, eventId=${result.eventId}, duplicate=${result.duplicate}`
+      `GitHub webhook processed: connectionId=${connection.id}, eventId=${result.eventId}, duplicate=${result.duplicate}`
     )
 
     // 5. Return 200 OK
@@ -101,19 +100,19 @@ export class WebhooksController {
     }
   }
 
-  @Post('gitlab/:connectionId')
+  @Post('gitlab/:webhookId')
   @HttpCode(HttpStatus.OK)
   async handleGitLab(
-    @Param('connectionId', ParseIntPipe) connectionId: number,
+    @Param('webhookId') webhookId: string,
     @Headers('x-gitlab-token') token: string | undefined,
     @Headers('x-gitlab-event') eventType: string | undefined,
     @Body() payload: any
   ) {
-    this.logger.log(`Received GitLab ${eventType} webhook for connection ${connectionId}`)
+    this.logger.log(`Received GitLab ${eventType} webhook for webhookId ${webhookId}`)
 
     // 1. Load connection and verify token
     const connection = await this.prisma.connection.findUnique({
-      where: { id: connectionId },
+      where: { webhookId },
     })
 
     if (!connection) {
@@ -129,7 +128,7 @@ export class WebhooksController {
     }
 
     if (!connection.enabled) {
-      this.logger.warn(`Webhook received for disabled connection ${connectionId}`)
+      this.logger.warn(`Webhook received for disabled connection ${connection.id}`)
       return { success: true, message: 'Connection is disabled' }
     }
 
@@ -141,7 +140,7 @@ export class WebhooksController {
       throw new BadRequestException('Missing X-Gitlab-Event header')
     }
 
-    const event = this.gitlabTransformer.transform(payload, eventType, connectionId)
+    const event = this.gitlabTransformer.transform(payload, eventType, connection.id)
 
     if (!event) {
       this.logger.debug(`Skipping unsupported GitLab event type: ${eventType}`)
@@ -153,12 +152,12 @@ export class WebhooksController {
 
     // 4. Update connection.lastWebhook
     await this.prisma.connection.update({
-      where: { id: connectionId },
+      where: { id: connection.id },
       data: { lastWebhook: new Date() },
     })
 
     this.logger.log(
-      `GitLab webhook processed: connectionId=${connectionId}, eventId=${result.eventId}, duplicate=${result.duplicate}`
+      `GitLab webhook processed: connectionId=${connection.id}, eventId=${result.eventId}, duplicate=${result.duplicate}`
     )
 
     // 5. Return 200 OK

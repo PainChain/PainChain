@@ -84,6 +84,7 @@ export interface ConnectorConfig {
  * DTOs for API requests/responses
  */
 export interface CreateConnectionDto {
+  id: string // Pre-generated webhook ID
   name: string
   type: string
   config: Record<string, any>

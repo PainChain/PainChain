@@ -48,6 +48,7 @@ export class ConnectionsController {
   async createConnection(@Body() dto: CreateConnectionDto) {
     return await this.prisma.connection.create({
       data: {
+        webhookId: dto.id, // Use the pre-generated ID from frontend
         name: dto.name,
         type: dto.type,
         config: dto.config,

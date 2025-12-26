@@ -26,8 +26,12 @@ export class PainchainController {
     })
 
     if (!painchainConnection) {
+      // Generate a webhook ID for the system connection
+      const webhookId = 'painchain'
+
       painchainConnection = await this.prisma.connection.create({
         data: {
+          webhookId,
           name: 'PainChain System',
           type: 'painchain',
           config: {},

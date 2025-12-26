@@ -40,6 +40,7 @@ model ChangeEvent {
 
 model Connection {
   id            Int       @id @default(autoincrement())
+  webhookId     String    @unique @map("webhook_id")
   name          String
   type          String
   config        Json

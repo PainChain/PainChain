@@ -992,6 +992,29 @@
   padding: 20px;
 }
 
+/* Inline Webhook Setup (for new connections) */
+.webhook-setup-inline {
+  margin-top: 16px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(0, 232, 160, 0.05) 0%, rgba(0, 232, 160, 0.02) 100%);
+  border: 1px solid rgba(0, 232, 160, 0.2);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.webhook-setup-inline h4 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #00E8A0;
+}
+
+.webhook-setup-inline .section-description {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  color: #8b949e;
+}
+
 .webhook-header {
   margin-bottom: 16px;
 }
@@ -1187,4 +1210,24 @@
 
 .webhook-info-box strong {
   color: #00E8A0;
+}
+
+.webhook-instructions-list {
+  margin-top: 8px;
+}
+
+.webhook-instructions-list p {
+  margin: 6px 0;
+  color: #e0e0e0;
+  font-size: 0.85em;
+  line-height: 1.5;
+  padding-left: 4px;
+}
+
+.webhook-instructions-list p:first-child {
+  margin-top: 0;
+}
+
+.webhook-instructions-list p:last-child {
+  margin-bottom: 0;
 }
