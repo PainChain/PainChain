@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: painchain-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: painchain
+      POSTGRES_PASSWORD: painchain
+      POSTGRES_DB: painchain
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U painchain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PainChain Backend
+  backend:
+    build:
+      context: ./painchain/backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: painchain-backend
+    restart: unless-stopped
+    env_file:
+      - ./painchain/backend/.env
+    environment:
+      PORT: 8000
+      NODE_ENV: development
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./painchain/backend/src:/app/src
+      - ./painchain/backend/prisma:/app/prisma
+      - ./painchain/backend/prisma.config.ts:/app/prisma.config.ts
+    command: sh -c "npx prisma db push && npm run start:dev"
+
+volumes:
+  postgres_data:

@@ -1,0 +1,77 @@
+// PainChain v2 Database Schema
+// Multi-tenant event aggregation platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Multi-tenant support (for SaaS tier)
+model Tenant {
+  id            String   @id @default(cuid())
+  slug          String   @unique  // "customer-id" for customer-id.painchain.io
+  name          String
+  createdAt     DateTime @default(now())
+
+  integrations  Integration[]
+  events        Event[]
+  projects      Project[]
+
+  @@map("tenants")
+}
+
+// User-registered integrations (SaaS tier: users provide API keys)
+// Or connector instances (Free tier: running containers)
+model Integration {
+  id            String   @id @default(cuid())
+  tenantId      String?  // null for free tier (single tenant)
+  tenant        Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  type          String   // "github", "gitlab", "kubernetes"
+  name          String   // User-friendly name: "ACME GitHub", "Production K8s"
+
+  // Configuration (API keys, repos to watch, polling settings)
+  config        Json     // { token: "...", repositories: [...], polling: {...} }
+
+  // Status
+  status        String   @default("active") // "active", "inactive", "error"
+  lastSync      DateTime?
+  registeredAt  DateTime @default(now())
+
+  @@map("integrations")
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  tenantId    String?  // null for free tier
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  title       String
+  connector   String   // "github", "gitlab", "kubernetes"
+  project     String   // "acme/backend-api", "prod-cluster/default"
+  timestamp   DateTime
+  data        Json     // Flexible JSON data
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, connector, project, timestamp])
+  @@index([tenantId, timestamp])
+  @@index([timestamp])
+  @@map("events")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  tenantId    String?  // null for free tier
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String   // "acme/backend-api", "prod-cluster/default"
+  connector   String   // "github", "gitlab", "kubernetes"
+  tags        String[] // Tags defined in connector config for this project
+  createdAt   DateTime @default(now())
+
+  @@unique([tenantId, name, connector])
+  @@map("projects")
+}
