@@ -16,6 +16,8 @@ export class TimelineService {
   constructor(private prisma: PrismaService) {}
 
   async getTimeline(filters: TimelineFilters) {
+    const startTime = Date.now();
+
     // If tags are specified, find integrations with matching tags
     let integrationIds: string[] | undefined;
     if (filters.tags && filters.tags.length > 0) {
@@ -74,6 +76,14 @@ export class TimelineService {
       },
       orderBy: { timestamp: 'desc' },
       take: eventLimit,
+    });
+
+    const duration = Date.now() - startTime;
+    console.log(`Timeline query: ${duration}ms - ${events.length} events - filters:`, {
+      connector: filters.connector,
+      project: filters.project,
+      tags: filters.tags,
+      limit: eventLimit
     });
 
     return {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../api/client';
 import type { Event } from '../types/api';
 
@@ -25,7 +25,7 @@ export function useEvents(params?: UseEventsParams): UseEventsReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       setError(null);
       const startTime = performance.now();
@@ -46,7 +46,7 @@ export function useEvents(params?: UseEventsParams): UseEventsReturn {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params?.connector, params?.project, params?.tags, params?.limit, params?.startDate, params?.endDate]);
 
   useEffect(() => {
     fetchEvents();
@@ -59,7 +59,7 @@ export function useEvents(params?: UseEventsParams): UseEventsReturn {
       );
       return () => clearInterval(interval);
     }
-  }, [params?.connector, params?.project, params?.tags, params?.limit, params?.startDate, params?.endDate]);
+  }, [fetchEvents, params?.autoRefresh, params?.refreshInterval]);
 
   return {
     events,

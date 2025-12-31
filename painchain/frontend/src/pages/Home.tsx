@@ -44,12 +44,16 @@ export function Home() {
     return Array.from(new Set(expanded));
   }, [tagFilter, teams]);
 
+  // Memoize the dates to prevent infinite re-renders
+  const startDateObj = useMemo(() => new Date(startDate), [startDate]);
+  const endDateObj = useMemo(() => new Date(endDate), [endDate]);
+
   const { events, loading, error, refetch } = useEvents({
     connector: sourceFilter || undefined,
     tags: expandedTags.length > 0 ? expandedTags : undefined,
     limit: 100,
-    startDate: new Date(startDate),
-    endDate: new Date(endDate),
+    startDate: startDateObj,
+    endDate: endDateObj,
   });
 
   // Extract all unique tags from integration configurations and teams
@@ -96,7 +100,7 @@ export function Home() {
       refetch();
     }, 30000);
     return () => clearInterval(interval);
-  }, [refetch]);
+  }, []); // Empty deps - refetch is stable from useEvents
 
   const getTimeGroup = (timestamp: string) => {
     const now = new Date();
