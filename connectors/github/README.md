@@ -104,6 +104,43 @@ curl -X POST http://localhost:8000/api/integrations \
 
 **The backend API is the single source of truth** - all integration configuration is managed through the API (and eventually the UI). The connector simply fetches and executes the configuration
 
+## Architecture
+
+The GitHub connector uses a polling-based architecture:
+
+1. **Startup**: Connector connects to PainChain backend
+2. **Integration Fetching**: Queries `/api/integrations?type=github` for all GitHub integrations
+3. **Repository Polling**: For each repository in each integration:
+   - Fetches recent events via GitHub Events API (last 30 events)
+   - Fetches recent workflow runs via GitHub Actions API (last 20 runs)
+   - Backend handles deduplication based on event IDs
+4. **Transformation**: Converts GitHub data to PainChain event format
+5. **Forwarding**: Posts events to backend via `/api/events` with proper tenant isolation
+6. **Repeat**: Waits for configured interval and repeats
+
+```
+┌─────────────────┐
+│ GitHub Repos    │
+│  - Events API   │
+│  - Actions API  │
+└────────┬────────┘
+         │ Poll (60s)
+         ↓
+┌─────────────────┐
+│ GitHub          │
+│ Connector       │
+│  - Transform    │
+│  - Forward      │
+└────────┬────────┘
+         │ POST /api/events
+         ↓
+┌─────────────────┐
+│ PainChain       │
+│ Backend         │
+│  - Deduplicate  │
+└─────────────────┘
+```
+
 ## Configuration
 
 ### Integration Configuration Schema
@@ -240,39 +277,71 @@ curl -X POST http://localhost:8000/api/integrations \
   }'
 ```
 
-## Architecture
+## Events Received
 
-1. **Startup**: Connector connects to PainChain backend
-2. **Integration Fetching**: Queries `/api/integrations?type=github` for all GitHub integrations
-3. **Repository Polling**: For each repository in each integration:
-   - Fetches recent events via GitHub Events API
-   - Fetches recent workflow runs via GitHub Actions API
-   - Tracks processed event/workflow IDs to avoid duplicates
-4. **Transformation**: Converts GitHub data to PainChain event format
-5. **Forwarding**: Posts events to backend via `/api/events` with proper tenant isolation
-6. **Repeat**: Waits for configured interval and repeats
+### Push Events
 
-```
-┌─────────────────┐
-│ GitHub Repos    │
-│  - Events API   │
-│  - Actions API  │
-└────────┬────────┘
-         │ Poll (60s)
-         ↓
-┌─────────────────┐
-│ GitHub          │
-│ Connector       │
-│  - Transform    │
-│  - Deduplicate  │
-└────────┬────────┘
-         │ POST /api/events
-         ↓
-┌─────────────────┐
-│ PainChain       │
-│ Backend         │
-└─────────────────┘
-```
+Triggered when commits are pushed to a branch.
+
+**Event data includes:**
+- Branch name
+- Commit count
+- Author username
+- Commit SHA
+- Repository information
+
+### Pull Request Events
+
+Triggered when pull requests are opened, closed, merged, or reviewed.
+
+**Event data includes:**
+- PR title and number
+- Action (opened, closed, merged)
+- Author username
+- State
+- Head and base branches
+- Merged status
+- HTML URL
+
+### Issue Events
+
+Triggered when issues are created, closed, or labeled.
+
+**Event data includes:**
+- Issue title and number
+- Action (opened, closed, labeled)
+- Author username
+- State
+- Labels
+- HTML URL
+
+### Release Events
+
+Triggered when new releases are published.
+
+**Event data includes:**
+- Release name and tag
+- Author username
+- Published status
+- HTML URL
+
+### Workflow Run Events
+
+Triggered when GitHub Actions workflows execute.
+
+**Event data includes:**
+- Workflow name and run number
+- Status (queued, in_progress, completed)
+- Conclusion (success, failure, cancelled, etc.)
+- Branch/ref
+- Commit SHA
+- Duration
+- HTML URL
+
+**Tracked statuses:**
+- All workflow runs are tracked
+- Only runs with conclusion (completed, failed, etc.) generate events
+- In-progress runs are not reported
 
 ## Multi-Tenant Support
 
