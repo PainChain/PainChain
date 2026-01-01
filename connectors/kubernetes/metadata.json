@@ -1,0 +1,51 @@
+{
+  "id": "kubernetes",
+  "displayName": "Kubernetes",
+  "color": "#326ce5",
+  "logo": "",
+  "description": "Watch Kubernetes clusters for resource changes in real-time",
+  "configSchema": {
+    "fields": [
+      {
+        "key": "name",
+        "label": "Integration Name",
+        "type": "text",
+        "placeholder": "e.g., My K8s Clusters",
+        "required": true,
+        "help": "A friendly name for this integration"
+      },
+      {
+        "key": "tags",
+        "label": "Tags",
+        "type": "textarea",
+        "placeholder": "[\"production\", \"kubernetes\"]",
+        "required": true,
+        "help": "JSON array of tags for filtering (can be empty [])"
+      },
+      {
+        "key": "clusters",
+        "label": "Clusters",
+        "type": "textarea",
+        "placeholder": "[\n  {\n    \"name\": \"production\",\n    \"server\": \"https://k8s.example.com:6443\",\n    \"token\": \"eyJhbGc...\",\n    \"skipTLSVerify\": false\n  }\n]",
+        "required": true,
+        "help": "JSON array of Kubernetes clusters to watch"
+      },
+      {
+        "key": "namespaces",
+        "label": "Namespaces (optional)",
+        "type": "textarea",
+        "placeholder": "[\"default\", \"production\"]",
+        "required": false,
+        "help": "JSON array of namespaces to watch. Leave empty to watch all namespaces."
+      },
+      {
+        "key": "resources",
+        "label": "Resources to Watch",
+        "type": "textarea",
+        "placeholder": "{\n  \"pods\": true,\n  \"deployments\": true,\n  \"services\": true\n}",
+        "required": false,
+        "help": "JSON object specifying which resources to watch. Defaults to all if not specified."
+      }
+    ]
+  }
+}

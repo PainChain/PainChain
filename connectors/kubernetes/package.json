@@ -1,0 +1,20 @@
+{
+  "name": "@painchain/kubernetes-connector",
+  "version": "1.0.0",
+  "description": "PainChain Kubernetes Connector - Watch Kubernetes clusters for resource changes",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@kubernetes/client-node": "^0.22.0",
+    "axios": "^1.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0",
+    "ts-node": "^10.9.2"
+  }
+}

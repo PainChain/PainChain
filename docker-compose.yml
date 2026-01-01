@@ -73,5 +73,19 @@ services:
     volumes:
       - ./connectors/gitlab/src:/app/src
 
+  # Kubernetes Connector
+  kubernetes-connector:
+    build:
+      context: ./connectors/kubernetes
+      dockerfile: Dockerfile
+    container_name: painchain-kubernetes-connector
+    restart: unless-stopped
+    environment:
+      BACKEND_API_URL: http://painchain:8000/api
+    depends_on:
+      - painchain
+    volumes:
+      - ./connectors/kubernetes/src:/app/src
+
 volumes:
   postgres_data:
