@@ -16,10 +16,13 @@ The GitLab connector polls GitLab projects for events and pipelines, transformin
 
 | Event Type | Description | Source |
 |------------|-------------|--------|
-| **Push** | Commits pushed to branches | Events API |
-| **Merge Request** | MRs opened, closed, merged, updated | Events API |
-| **Issues** | Issues created, closed, updated, labeled | Events API |
+| **Push** | Commits pushed to branches (with file changes) | Events API + Commits API |
+| **Merge Request** | MRs opened, closed, merged, updated (with file changes) | Events API + MR Changes API |
 | **Pipeline** | GitLab CI/CD pipeline executions | Pipelines API |
+| **Job** | Individual CI job status | Jobs API |
+| **Deployment** | Deployments to environments | Deployments API |
+| **Tag** | Tags created | Tags API |
+| **Release** | Releases created | Releases API |
 
 ## Quick Start
 
@@ -271,8 +274,10 @@ Triggered when commits are pushed to a branch.
 **Event data includes:**
 - Branch name
 - Commit count
-- Author username
+- **File changes** (names and count, up to 50 files)
+- Author username, ID, and email
 - Commit SHA
+- Web URL
 
 ### Merge Request Events
 
@@ -281,21 +286,10 @@ Triggered when merge requests are opened, closed, merged, or updated.
 **Event data includes:**
 - MR title and IID
 - Action (opened, closed, merged, updated)
-- Author username
+- **File changes** (names and count, up to 50 files)
+- Author username, ID, and email
 - State
 - Source and target branches
-- Web URL
-
-### Issue Events
-
-Triggered when issues are created, closed, updated, or labeled.
-
-**Event data includes:**
-- Issue title and IID
-- Action (opened, closed, updated)
-- Author username
-- State
-- Labels
 - Web URL
 
 ### Pipeline Events
@@ -304,10 +298,63 @@ Triggered when CI/CD pipelines run.
 
 **Event data includes:**
 - Pipeline ID and status
-- Branch/ref
-- Commit SHA
-- Author username
+- Branch/ref and commit SHA
+- Author username, ID, and email
 - Duration in seconds
+- Web URL
+
+### Job Events
+
+Triggered when individual CI jobs within pipelines execute.
+
+**Event data includes:**
+- Job name and ID
+- Status (created, pending, running, success, failed, canceled, skipped, manual)
+- Stage name
+- Branch/ref and commit SHA
+- Pipeline ID
+- Duration and queued duration
+- Runner ID and description
+- Failure reason (if failed)
+- Allow failure flag
+- Artifacts presence
+- Coverage percentage
+- User who triggered, ID
+- Web URL
+
+### Deployment Events
+
+Triggered when deployments are created or updated.
+
+**Event data includes:**
+- Deployment ID and status
+- Environment name and ID
+- Branch/ref and commit SHA
+- Deployer username, ID, and email
+- Web URL
+
+### Tag Events
+
+Triggered when tags are created.
+
+**Event data includes:**
+- Tag name
+- Commit SHA and message
+- Tag message/annotation
+- Author name
+- Web URL
+
+### Release Events
+
+Triggered when releases are created.
+
+**Event data includes:**
+- Release name and tag name
+- Description
+- Author username, ID, and email
+- Commit SHA
+- Upcoming release flag
+- Assets count
 - Web URL
 
 ## Multi-Tenant Support

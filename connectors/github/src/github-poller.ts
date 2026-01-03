@@ -106,6 +106,29 @@ export class GitHubPoller {
         const painchainEvent = transformGitHubEvent(event, repo.owner, repo.repo);
 
         if (painchainEvent) {
+          // For merged PRs, fetch file changes
+          if (event.type === 'PullRequestEvent' && (event.payload as any)?.pull_request?.merged) {
+            try {
+              const pr = (event.payload as any).pull_request;
+              const { data: prFiles } = await octokit.pulls.listFiles({
+                owner: repo.owner,
+                repo: repo.repo,
+                pull_number: pr.number,
+              });
+
+              const MAX_FILES = 50; // Truncate to prevent huge events
+              const filesList = prFiles.map(f => f.filename);
+              const truncated = filesList.length > MAX_FILES;
+
+              painchainEvent.data.files_changed_count = filesList.length;
+              painchainEvent.data.files_changed = truncated ? filesList.slice(0, MAX_FILES) : filesList;
+              painchainEvent.data.files_truncated = truncated;
+            } catch (error: any) {
+              console.error(`    ⚠️  Failed to fetch PR files: ${error.message}`);
+              // Continue without file data
+            }
+          }
+
           // Post to backend (backend handles deduplication)
           await this.backendClient.postEvent(
             {

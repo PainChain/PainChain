@@ -6,23 +6,47 @@ The Kubernetes connector watches Kubernetes clusters in real-time for resource c
 
 - **Real-time watching** - Uses Kubernetes watch API for instant event notifications (not polling)
 - **Multi-cluster support** - Monitor multiple Kubernetes clusters from a single integration
-- **Comprehensive resource coverage** - Tracks Pods, Deployments, Services, StatefulSets, DaemonSets, and Events
+- **Comprehensive resource coverage** - Tracks 15+ Kubernetes resource types including Helm releases
 - **Namespace filtering** - Watch all namespaces or filter to specific ones
 - **Intelligent event filtering** - Only captures significant events (failures, restarts, deletions, etc.)
 - **Multi-tenant aware** - Works seamlessly with both free and SaaS tiers
 - **Auto-reconnection** - Automatically restarts watches when connections drop
 - **Production & development modes** - Supports both token-based auth and kubeconfig contexts
+- **Helm support** - Automatically detects and tracks Helm v3 releases
 
 ## Supported Resource Types
 
-| Resource Type | Events Tracked | Notes |
+### Workloads
+| Resource Type | Events Tracked | Scope |
 |---------------|----------------|-------|
-| **Pods** | Created, Deleted, CrashLoopBackOff, ImagePullErrors, Restarts | Only significant pod events |
-| **Deployments** | Created, Updated, Deleted, Scaling | All deployment changes |
-| **Services** | Created, Deleted | Creation and deletion only |
-| **StatefulSets** | Created, Updated, Deleted | All statefulset changes |
-| **DaemonSets** | Created, Updated, Deleted | All daemonset changes |
-| **Events** | Warning events, Important Normal events | K8s Event objects |
+| **Pods** | Created, Deleted, CrashLoopBackOff, ImagePullErrors, Restarts | Namespaced |
+| **Deployments** | Created, Updated, Deleted, Scaling | Namespaced |
+| **StatefulSets** | Created, Updated, Deleted | Namespaced |
+| **DaemonSets** | Created, Updated, Deleted | Namespaced |
+| **Jobs** | Created, Running, Succeeded, Failed | Namespaced |
+| **CronJobs** | Created, Updated, Deleted, Schedule changes | Namespaced |
+
+### Configuration & Storage
+| Resource Type | Events Tracked | Scope | Notes |
+|---------------|----------------|-------|-------|
+| **ConfigMaps** | Created, Updated, Deleted | Namespaced | Captures key names only |
+| **Secrets** | Created, Updated, Deleted | Namespaced | Metadata only, never values |
+| **PersistentVolumes** | Created, Bound, Released, Deleted | Cluster-wide | |
+| **PersistentVolumeClaims** | Created, Bound, Lost, Deleted | Namespaced | |
+| **StorageClasses** | Created, Updated, Deleted | Cluster-wide | |
+
+### Networking
+| Resource Type | Events Tracked | Scope |
+|---------------|----------------|-------|
+| **Services** | Created, Updated, Deleted | Namespaced |
+| **Ingresses** | Created, Updated, Deleted | Namespaced |
+| **IngressClasses** | Created, Updated, Deleted | Cluster-wide |
+
+### Application Management
+| Resource Type | Events Tracked | Scope | Notes |
+|---------------|----------------|-------|-------|
+| **Helm Releases** | Installed, Upgraded, Rolled back, Uninstalled | Namespaced | Detected from Secrets |
+| **Events** | Warning events, Important Normal events | Namespaced | K8s Event objects |
 
 ## Quick Start
 
@@ -55,9 +79,33 @@ kubectl create serviceaccount painchain-connector -n default
 2. Create a ClusterRole with read permissions:
 
 ```bash
-kubectl create clusterrole painchain-reader \
-  --verb=get,list,watch \
-  --resource=pods,deployments,services,statefulsets,daemonsets,events
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: painchain-reader
+rules:
+# Core resources
+- apiGroups: [""]
+  resources: ["pods", "services", "events", "namespaces", "configmaps", "secrets", "persistentvolumes", "persistentvolumeclaims"]
+  verbs: ["get", "list", "watch"]
+# Apps resources
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "daemonsets"]
+  verbs: ["get", "list", "watch"]
+# Batch resources
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list", "watch"]
+# Networking resources
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses", "ingressclasses"]
+  verbs: ["get", "list", "watch"]
+# Storage resources
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list", "watch"]
+EOF
 ```
 
 3. Bind the role to the ServiceAccount:

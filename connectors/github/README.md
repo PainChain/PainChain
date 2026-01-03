@@ -15,11 +15,12 @@ The GitHub connector polls GitHub repositories for events and workflows, transfo
 
 | Event Type | Description | Source |
 |------------|-------------|--------|
-| **Push** | Commits pushed to branches | Events API |
-| **Pull Request** | PRs opened, closed, merged, reviewed | Events API |
-| **Issues** | Issues created, closed, labeled | Events API |
-| **Release** | New releases published | Events API |
+| **Push** | Commits pushed to branches (with file changes) | Events API |
+| **Pull Request** | PRs merged (with file changes) | Events API + PR Files API |
+| **Release** | New releases published (with commit SHA) | Events API |
 | **Workflow Run** | GitHub Actions CI/CD pipeline executions | Actions API |
+| **Deployment** | Deployments created to environments | Events API |
+| **Deployment Status** | Deployment status updates (success, failure, etc.) | Events API |
 
 ## Quick Start
 
@@ -285,34 +286,25 @@ Triggered when commits are pushed to a branch.
 
 **Event data includes:**
 - Branch name
-- Commit count
-- Author username
-- Commit SHA
+- Commit count and messages
+- **File changes** (names and count, up to 50 files)
+- Author username, ID, and type
+- Commit SHA range
 - Repository information
+- URL to compare view
 
 ### Pull Request Events
 
-Triggered when pull requests are opened, closed, merged, or reviewed.
+**Only merged PRs are tracked** (state changes to codebase).
 
 **Event data includes:**
 - PR title and number
-- Action (opened, closed, merged)
-- Author username
-- State
+- Action (merged)
+- **File changes** (names and count, up to 50 files)
+- Author username, ID, and type
+- Merged by username, ID, and type
+- State and merged status
 - Head and base branches
-- Merged status
-- HTML URL
-
-### Issue Events
-
-Triggered when issues are created, closed, or labeled.
-
-**Event data includes:**
-- Issue title and number
-- Action (opened, closed, labeled)
-- Author username
-- State
-- Labels
 - HTML URL
 
 ### Release Events
@@ -321,8 +313,9 @@ Triggered when new releases are published.
 
 **Event data includes:**
 - Release name and tag
-- Author username
-- Published status
+- **Commit SHA** at time of release
+- Author username, ID, and type
+- Prerelease flag
 - HTML URL
 
 ### Workflow Run Events
@@ -333,15 +326,45 @@ Triggered when GitHub Actions workflows execute.
 - Workflow name and run number
 - Status (queued, in_progress, completed)
 - Conclusion (success, failure, cancelled, etc.)
-- Branch/ref
-- Commit SHA
-- Duration
+- Branch/ref and commit SHA
+- Author/triggering actor username, ID, and type
+- Duration in seconds
 - HTML URL
 
 **Tracked statuses:**
 - All workflow runs are tracked
 - Only runs with conclusion (completed, failed, etc.) generate events
 - In-progress runs are not reported
+
+### Deployment Events
+
+Triggered when deployments are created to environments.
+
+**Event data includes:**
+- Deployment ID
+- Environment (production, staging, etc.)
+- Ref (branch/tag) and commit SHA
+- Task type
+- Creator username, ID, and type
+- Description
+- Deployment URL
+
+### Deployment Status Events
+
+Triggered when deployment status changes.
+
+**Event data includes:**
+- Deployment ID and status ID
+- State (success, failure, error, pending, in_progress, queued, inactive)
+- Environment name
+- Ref and commit SHA
+- Creator username, ID, and type
+- Description
+- Deployment URL, environment URL, log URL
+
+**Status tracking:**
+- All deployment status updates are captured
+- Provides complete deployment lifecycle visibility
 
 ## Multi-Tenant Support
 

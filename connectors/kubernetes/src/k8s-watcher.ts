@@ -8,6 +8,15 @@ import {
   transformK8sEvent,
   transformStatefulSetEvent,
   transformDaemonSetEvent,
+  transformConfigMapEvent,
+  transformSecretEvent,
+  transformJobEvent,
+  transformCronJobEvent,
+  transformPersistentVolumeEvent,
+  transformPersistentVolumeClaimEvent,
+  transformIngressEvent,
+  transformIngressClassEvent,
+  transformStorageClassEvent,
 } from './event-transformer';
 
 export class K8sWatcher {
@@ -88,6 +97,15 @@ export class K8sWatcher {
       statefulsets: true,
       daemonsets: true,
       events: true,
+      configmaps: true,
+      secrets: true,
+      jobs: true,
+      cronjobs: true,
+      persistentvolumes: true,
+      persistentvolumeclaims: true,
+      ingresses: true,
+      ingressclasses: true,
+      storageclasses: true,
     };
 
     // Initialize Kubernetes client for this cluster
@@ -153,6 +171,33 @@ export class K8sWatcher {
       }
       if (resources.events) {
         this.watchResource(kc, integration, cluster, 'events', this.watchK8sEvents.bind(this));
+      }
+      if (resources.configmaps) {
+        this.watchResource(kc, integration, cluster, 'configmaps', this.watchConfigMaps.bind(this));
+      }
+      if (resources.secrets) {
+        this.watchResource(kc, integration, cluster, 'secrets', this.watchSecrets.bind(this));
+      }
+      if (resources.jobs) {
+        this.watchResource(kc, integration, cluster, 'jobs', this.watchJobs.bind(this));
+      }
+      if (resources.cronjobs) {
+        this.watchResource(kc, integration, cluster, 'cronjobs', this.watchCronJobs.bind(this));
+      }
+      if (resources.persistentvolumes) {
+        this.watchResource(kc, integration, cluster, 'persistentvolumes', this.watchPersistentVolumes.bind(this));
+      }
+      if (resources.persistentvolumeclaims) {
+        this.watchResource(kc, integration, cluster, 'persistentvolumeclaims', this.watchPersistentVolumeClaims.bind(this));
+      }
+      if (resources.ingresses) {
+        this.watchResource(kc, integration, cluster, 'ingresses', this.watchIngresses.bind(this));
+      }
+      if (resources.ingressclasses) {
+        this.watchResource(kc, integration, cluster, 'ingressclasses', this.watchIngressClasses.bind(this));
+      }
+      if (resources.storageclasses) {
+        this.watchResource(kc, integration, cluster, 'storageclasses', this.watchStorageClasses.bind(this));
       }
     });
   }
@@ -361,6 +406,288 @@ export class K8sWatcher {
         {},
         (type, obj: k8s.CoreV1Event) => {
           const event = transformK8sEvent(obj, cluster.name);
+          if (event) {
+            this.postEvent(event, integration);
+          }
+        },
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Watch ConfigMaps
+   */
+  private async watchConfigMaps(kc: k8s.KubeConfig, integration: Integration, cluster: ClusterConfig): Promise<void> {
+    const watch = new k8s.Watch(kc);
+    const path = integration.config.namespaces?.length
+      ? `/api/v1/namespaces/${integration.config.namespaces[0]}/configmaps`
+      : '/api/v1/configmaps';
+
+    console.log(`👀 Watching configmaps in ${cluster.name}...`);
+
+    return new Promise((resolve, reject) => {
+      watch.watch(
+        path,
+        {},
+        (type, obj: k8s.V1ConfigMap) => {
+          const event = transformConfigMapEvent(type, obj, cluster.name);
+          if (event) {
+            this.postEvent(event, integration);
+          }
+        },
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Watch Secrets
+   */
+  private async watchSecrets(kc: k8s.KubeConfig, integration: Integration, cluster: ClusterConfig): Promise<void> {
+    const watch = new k8s.Watch(kc);
+    const path = integration.config.namespaces?.length
+      ? `/api/v1/namespaces/${integration.config.namespaces[0]}/secrets`
+      : '/api/v1/secrets';
+
+    console.log(`👀 Watching secrets in ${cluster.name}...`);
+
+    return new Promise((resolve, reject) => {
+      watch.watch(
+        path,
+        {},
+        (type, obj: k8s.V1Secret) => {
+          const event = transformSecretEvent(type, obj, cluster.name);
+          if (event) {
+            this.postEvent(event, integration);
+          }
+        },
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Watch Jobs
+   */
+  private async watchJobs(kc: k8s.KubeConfig, integration: Integration, cluster: ClusterConfig): Promise<void> {
+    const watch = new k8s.Watch(kc);
+    const path = integration.config.namespaces?.length
+      ? `/apis/batch/v1/namespaces/${integration.config.namespaces[0]}/jobs`
+      : '/apis/batch/v1/jobs';
+
+    console.log(`👀 Watching jobs in ${cluster.name}...`);
+
+    return new Promise((resolve, reject) => {
+      watch.watch(
+        path,
+        {},
+        (type, obj: k8s.V1Job) => {
+          const event = transformJobEvent(type, obj, cluster.name);
+          if (event) {
+            this.postEvent(event, integration);
+          }
+        },
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Watch CronJobs
+   */
+  private async watchCronJobs(kc: k8s.KubeConfig, integration: Integration, cluster: ClusterConfig): Promise<void> {
+    const watch = new k8s.Watch(kc);
+    const path = integration.config.namespaces?.length
+      ? `/apis/batch/v1/namespaces/${integration.config.namespaces[0]}/cronjobs`
+      : '/apis/batch/v1/cronjobs';
+
+    console.log(`👀 Watching cronjobs in ${cluster.name}...`);
+
+    return new Promise((resolve, reject) => {
+      watch.watch(
+        path,
+        {},
+        (type, obj: k8s.V1CronJob) => {
+          const event = transformCronJobEvent(type, obj, cluster.name);
+          if (event) {
+            this.postEvent(event, integration);
+          }
+        },
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Watch PersistentVolumes
+   */
+  private async watchPersistentVolumes(kc: k8s.KubeConfig, integration: Integration, cluster: ClusterConfig): Promise<void> {
+    const watch = new k8s.Watch(kc);
+    const path = '/api/v1/persistentvolumes'; // PVs are cluster-scoped
+
+    console.log(`👀 Watching persistentvolumes in ${cluster.name}...`);
+
+    return new Promise((resolve, reject) => {
+      watch.watch(
+        path,
+        {},
+        (type, obj: k8s.V1PersistentVolume) => {
+          const event = transformPersistentVolumeEvent(type, obj, cluster.name);
+          if (event) {
+            this.postEvent(event, integration);
+          }
+        },
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Watch PersistentVolumeClaims
+   */
+  private async watchPersistentVolumeClaims(kc: k8s.KubeConfig, integration: Integration, cluster: ClusterConfig): Promise<void> {
+    const watch = new k8s.Watch(kc);
+    const path = integration.config.namespaces?.length
+      ? `/api/v1/namespaces/${integration.config.namespaces[0]}/persistentvolumeclaims`
+      : '/api/v1/persistentvolumeclaims';
+
+    console.log(`👀 Watching persistentvolumeclaims in ${cluster.name}...`);
+
+    return new Promise((resolve, reject) => {
+      watch.watch(
+        path,
+        {},
+        (type, obj: k8s.V1PersistentVolumeClaim) => {
+          const event = transformPersistentVolumeClaimEvent(type, obj, cluster.name);
+          if (event) {
+            this.postEvent(event, integration);
+          }
+        },
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Watch Ingresses
+   */
+  private async watchIngresses(kc: k8s.KubeConfig, integration: Integration, cluster: ClusterConfig): Promise<void> {
+    const watch = new k8s.Watch(kc);
+    const path = integration.config.namespaces?.length
+      ? `/apis/networking.k8s.io/v1/namespaces/${integration.config.namespaces[0]}/ingresses`
+      : '/apis/networking.k8s.io/v1/ingresses';
+
+    console.log(`👀 Watching ingresses in ${cluster.name}...`);
+
+    return new Promise((resolve, reject) => {
+      watch.watch(
+        path,
+        {},
+        (type, obj: k8s.V1Ingress) => {
+          const event = transformIngressEvent(type, obj, cluster.name);
+          if (event) {
+            this.postEvent(event, integration);
+          }
+        },
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Watch IngressClasses
+   */
+  private async watchIngressClasses(kc: k8s.KubeConfig, integration: Integration, cluster: ClusterConfig): Promise<void> {
+    const watch = new k8s.Watch(kc);
+    const path = '/apis/networking.k8s.io/v1/ingressclasses'; // IngressClasses are cluster-scoped
+
+    console.log(`👀 Watching ingressclasses in ${cluster.name}...`);
+
+    return new Promise((resolve, reject) => {
+      watch.watch(
+        path,
+        {},
+        (type, obj: k8s.V1IngressClass) => {
+          const event = transformIngressClassEvent(type, obj, cluster.name);
+          if (event) {
+            this.postEvent(event, integration);
+          }
+        },
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Watch StorageClasses
+   */
+  private async watchStorageClasses(kc: k8s.KubeConfig, integration: Integration, cluster: ClusterConfig): Promise<void> {
+    const watch = new k8s.Watch(kc);
+    const path = '/apis/storage.k8s.io/v1/storageclasses'; // StorageClasses are cluster-scoped
+
+    console.log(`👀 Watching storageclasses in ${cluster.name}...`);
+
+    return new Promise((resolve, reject) => {
+      watch.watch(
+        path,
+        {},
+        (type, obj: k8s.V1StorageClass) => {
+          const event = transformStorageClassEvent(type, obj, cluster.name);
           if (event) {
             this.postEvent(event, integration);
           }

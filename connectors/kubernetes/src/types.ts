@@ -34,7 +34,13 @@ export interface ResourceConfig {
   services?: boolean;
   configmaps?: boolean;
   secrets?: boolean;
+  jobs?: boolean;
+  cronjobs?: boolean;
+  persistentvolumes?: boolean;
+  persistentvolumeclaims?: boolean;
   ingresses?: boolean;
+  ingressclasses?: boolean;
+  storageclasses?: boolean;
   events?: boolean; // K8s Event objects
   helm?: boolean; // Helm releases
 }
