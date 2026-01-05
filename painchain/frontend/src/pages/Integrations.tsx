@@ -20,18 +20,6 @@ interface ConnectorSchema {
   fields: ConfigField[];
 }
 
-// Helper function to get connector icon (fallback for types without logo)
-function getConnectorIconFallback(type: string): string {
-  const icons: Record<string, string> = {
-    github: '🐙',
-    gitlab: '🦊',
-    kubernetes: '☸️',
-    k8s: '☸️',
-    painchain: '⛓️',
-  };
-  return icons[type.toLowerCase()] || '🔗';
-}
-
 export function Integrations() {
   const {
     integrations,
@@ -42,19 +30,6 @@ export function Integrations() {
   } = useIntegrations();
   const { types, getSchema } = useIntegrationTypes();
   const { teams, loading: teamsLoading, createTeam, updateTeam, deleteTeam } = useTeams();
-
-  // Create a map of type ID to connector type info
-  const typesMap = types.reduce((acc, type) => {
-    acc[type.id] = type;
-    return acc;
-  }, {} as Record<string, any>);
-
-  // Helper to get the icon for a connector type
-  const getConnectorIcon = (typeId: string): string => {
-    const connectorType = typesMap[typeId];
-    // Use logo from connector type metadata if available, otherwise fallback
-    return connectorType?.logo || getConnectorIconFallback(typeId);
-  };
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('integrations');
   const [searchQuery, setSearchQuery] = useState('');
@@ -411,23 +386,14 @@ export function Integrations() {
                 Object.entries(filteredIntegrations).map(([type, items]) => (
                   <div key={type} className="integration-group">
                     <h2 className="integration-group-title">
-                      {(() => {
-                        const connectorType = typesMap[type];
-                        const logo = connectorType?.logo;
-
-                        // If logo exists, render from API endpoint
-                        if (logo) {
-                          return (
-                            <img
-                              src={`/api/integrations/types/${type}/logo`}
-                              alt={type}
-                              className="connector-logo"
-                            />
-                          );
-                        }
-                        // Otherwise render as emoji or fallback
-                        return <span className="connector-icon">{getConnectorIcon(type)}</span>;
-                      })()}
+                      <img
+                        src={`/api/integrations/types/${type}/logo`}
+                        alt={type}
+                        className="connector-logo"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
                       {type.charAt(0).toUpperCase() + type.slice(1)}
                       <span className="integration-count">{items.length}</span>
                     </h2>

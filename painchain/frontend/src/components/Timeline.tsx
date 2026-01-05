@@ -50,10 +50,10 @@ export default function Timeline({ events, onTimeRangeChange, startDate, endDate
     let maxTime: number
 
     if (events.length === 0) {
-      // Create empty buckets for the last hour
+      // Create empty buckets for the last 24 hours
       const now = new Date()
-      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
-      minTime = oneHourAgo.getTime()
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+      minTime = oneDayAgo.getTime()
       maxTime = now.getTime()
     } else if (startDate && endDate) {
       minTime = new Date(startDate).getTime()
@@ -72,31 +72,9 @@ export default function Timeline({ events, onTimeRangeChange, startDate, endDate
       timeRange = 60 * 60 * 1000 // 1 hour in milliseconds
     }
 
-    // Dynamically determine bucket size and count based on time range
-    let bucketSize: number
-    let NUM_BUCKETS: number
-
-    const oneHour = 60 * 60 * 1000
-    const oneDay = 24 * oneHour
-    const oneWeek = 7 * oneDay
-
-    if (timeRange <= oneHour) {
-      // For ranges up to 1 hour: 1 minute buckets (60 buckets)
-      bucketSize = oneHour / 60
-      NUM_BUCKETS = 60
-    } else if (timeRange <= oneDay) {
-      // For ranges up to 1 day: 30 minute buckets (48 buckets)
-      bucketSize = 30 * 60 * 1000
-      NUM_BUCKETS = Math.ceil(timeRange / bucketSize)
-    } else if (timeRange <= oneWeek) {
-      // For ranges up to 1 week: 2 hour buckets (84 buckets for 7 days)
-      bucketSize = 2 * oneHour
-      NUM_BUCKETS = Math.ceil(timeRange / bucketSize)
-    } else {
-      // For ranges longer than 1 week: 6 hour buckets
-      bucketSize = 6 * oneHour
-      NUM_BUCKETS = Math.ceil(timeRange / bucketSize)
-    }
+    // Always use 60 buckets regardless of time range
+    const NUM_BUCKETS = 60
+    const bucketSize = timeRange / NUM_BUCKETS
 
     // Create empty buckets
     const buckets: TimelineBin[] = []
@@ -131,8 +109,8 @@ export default function Timeline({ events, onTimeRangeChange, startDate, endDate
       totalEvents: events.length,
       totalInBuckets,
       numBuckets: buckets.length,
-      bucketSize: bucketSize / (60 * 60 * 1000) + ' hours',
-      timeRange: (maxTime - minTime) / (24 * 60 * 60 * 1000) + ' days'
+      bucketSize: `${(bucketSize / (60 * 1000)).toFixed(1)} minutes`,
+      timeRange: `${((maxTime - minTime) / (24 * 60 * 60 * 1000)).toFixed(2)} days`
     })
 
     setTimelineData(buckets)

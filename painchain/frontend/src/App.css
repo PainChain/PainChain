@@ -407,17 +407,15 @@
 
 .connector-info {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
 }
 
 .connector-name {
-  font-size: 0.65em;
-  color: #808080;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
+  font-size: 0.75em;
+  color: #c9d1d9;
+  font-weight: 500;
 }
 
 .source-badge {

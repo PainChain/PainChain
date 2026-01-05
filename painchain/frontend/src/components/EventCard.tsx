@@ -53,18 +53,10 @@ export function EventCard({ event, tags = [] }: EventCardProps) {
                 e.currentTarget.style.display = 'none';
               }}
             />
-            <span className="connector-name">{event.connector}</span>
+            <span className="connector-name" style={{ color: getConnectorColor(event.connector) }}>
+              {event.connector.charAt(0).toUpperCase() + event.connector.slice(1)}
+            </span>
           </div>
-          <span
-            className="source-badge"
-            style={{
-              backgroundColor: `${getConnectorColor(event.connector)}1A`,
-              color: getConnectorColor(event.connector),
-              border: `1px solid ${getConnectorColor(event.connector)}4D`,
-            }}
-          >
-            {event.connector}
-          </span>
         </div>
         <div className="change-meta">
           <div>By {event.data.author || event.data.user || 'system'}</div>

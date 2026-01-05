@@ -9,18 +9,17 @@ const connectorColors: Record<string, string> = {
   k8s: '#326ce5', // Blue
 };
 
-const connectorIcons: Record<string, string> = {
-  github: '🐙',
-  gitlab: '🦊',
-  kubernetes: '☸️',
-  k8s: '☸️',
+const CONNECTOR_LOGOS: Record<string, string> = {
+  github: '/api/integrations/types/github/logo',
+  gitlab: '/api/integrations/types/gitlab/logo',
+  kubernetes: '/api/integrations/types/kubernetes/logo',
+  k8s: '/api/integrations/types/kubernetes/logo',
 };
 
 export function ConnectorBadge({ connector }: ConnectorBadgeProps) {
   const color =
     connectorColors[connector.toLowerCase()] || '#6b7280'; // Gray fallback
-  const icon =
-    connectorIcons[connector.toLowerCase()] || '🔗'; // Generic link icon
+  const logoUrl = CONNECTOR_LOGOS[connector.toLowerCase()];
 
   return (
     <span
@@ -31,7 +30,16 @@ export function ConnectorBadge({ connector }: ConnectorBadgeProps) {
         color: color,
       }}
     >
-      <span>{icon}</span>
+      {logoUrl && (
+        <img
+          src={logoUrl}
+          alt={`${connector} logo`}
+          style={{ width: '14px', height: '14px', objectFit: 'contain' }}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+      )}
       <span>{connector}</span>
     </span>
   );

@@ -5,16 +5,17 @@ import { useTeams } from '../hooks/useTeams';
 import { EventCard } from '../components/EventCard';
 import Timeline from '../components/Timeline';
 import { TagsDropdown } from '../components/TagsDropdown';
+import { SourceDropdown } from '../components/SourceDropdown';
 import { DateTimePicker } from '../components/DateTimePicker';
 import type { Event } from '../types/api';
 
 export function Home() {
-  const [sourceFilter, setSourceFilter] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<string[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
-  // Default to last hour (using browser local time)
+  // Default to last 24 hours (using browser local time)
   const [startDate, setStartDate] = useState(() => {
     const date = new Date();
-    date.setHours(date.getHours() - 1);
+    date.setDate(date.getDate() - 1);
     return date.toISOString();
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString());
@@ -49,7 +50,6 @@ export function Home() {
   const endDateObj = useMemo(() => new Date(endDate), [endDate]);
 
   const { events, loading, error, refetch } = useEvents({
-    connector: sourceFilter || undefined,
     tags: expandedTags.length > 0 ? expandedTags : undefined,
     limit: 100,
     startDate: startDateObj,
@@ -152,8 +152,13 @@ export function Home() {
     setEndDate(end);
   };
 
-  // Events are already filtered by date range from the API
-  const filteredEvents = events;
+  // Filter events by selected sources (frontend filtering)
+  const filteredEvents = useMemo(() => {
+    if (sourceFilter.length === 0) {
+      return events;
+    }
+    return events.filter(event => sourceFilter.includes(event.connector));
+  }, [events, sourceFilter]);
 
   if (loading && events.length === 0) {
     return (
@@ -185,17 +190,12 @@ export function Home() {
 
       {/* Filters */}
       <div className="filters">
-        <div className="filter-group">
+        <div className="filter-group tags-filter">
           <label>Source:</label>
-          <select
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-          >
-            <option value="">All</option>
-            <option value="github">GitHub</option>
-            <option value="gitlab">GitLab</option>
-            <option value="kubernetes">Kubernetes</option>
-          </select>
+          <SourceDropdown
+            selectedSources={sourceFilter}
+            onChange={setSourceFilter}
+          />
         </div>
 
         <div className="filter-group tags-filter">
