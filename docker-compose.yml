@@ -86,6 +86,13 @@ services:
       - painchain
     volumes:
       - ./connectors/kubernetes/src:/app/src
+    # networks:
+    #   - default
+    #   - k3d-painchain-dev
 
 volumes:
   postgres_data:
+
+# networks:
+#   k3d-painchain-dev:
+#     external: true
