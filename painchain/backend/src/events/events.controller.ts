@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { EventsService } from './events.service';
 import { Prisma } from '@prisma/client';
+import { Public } from '../auth/decorators/public.decorator';
 
 interface CreateEventDto {
   title: string;
@@ -22,6 +23,7 @@ interface CreateEventDto {
   data: Record<string, any>;
 }
 
+@Public() // Temporary: Allow unauthenticated access during migration
 @Controller('events')
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}

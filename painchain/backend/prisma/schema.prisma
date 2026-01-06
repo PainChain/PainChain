@@ -20,6 +20,7 @@ model Tenant {
   events        Event[]
   projects      Project[]
   teams         Team[]
+  users         User[]        // Users belonging to this tenant
 
   @@map("tenants")
 }
@@ -115,4 +116,116 @@ model Team {
   @@unique([tenantId, name])
   @@index([tenantId])
   @@map("teams")
+}
+
+// ============================================
+// AUTHENTICATION & USER MANAGEMENT
+// ============================================
+
+// User accounts (supports both basic auth and OIDC)
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  passwordHash  String?  // bcrypt hash (null for OIDC-only users)
+
+  // Profile information
+  firstName     String?
+  lastName      String?
+  displayName   String?
+  avatarUrl     String?
+
+  // Account metadata
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastLoginAt   DateTime?
+  isActive      Boolean  @default(true)
+
+  // Multi-tenancy: Users belong to ONE tenant
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // RBAC (role-based access control)
+  role          String   @default("member") // "owner", "admin", "member", "viewer"
+
+  // Relations
+  sessions      Session[]
+  oidcAccounts  OIDCAccount[]
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([tenantId, email])
+  @@map("users")
+}
+
+// OIDC accounts linked to users
+model OIDCAccount {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  providerId     String   // Links to OIDCProvider.id (e.g., "google", "okta-prod")
+  providerUserId String   // User's ID in provider system (sub claim)
+  claims         Json     // Full OIDC claims from userinfo endpoint
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lastUsedAt     DateTime @default(now())
+
+  @@unique([providerId, providerUserId])
+  @@index([userId])
+  @@index([providerId])
+  @@map("oidc_accounts")
+}
+
+// OIDC provider configuration (synced from env vars on startup)
+model OIDCProvider {
+  id               String   @id // e.g., "google", "okta-prod", "azure"
+  name             String   // "Google Workspace"
+  iconUrl          String?  // URL to provider icon
+
+  // OIDC configuration
+  issuer           String
+  clientId         String
+  clientSecret     String
+  authorizationUrl String
+  tokenUrl         String
+  userinfoUrl      String
+  scopes           String[] @default(["openid", "email", "profile"])
+
+  // Tenant claim mapping
+  tenantClaimPath  String @default("tenant_id") // JSON path to extract tenant from claims
+
+  // Provider metadata
+  isEnabled        Boolean  @default(true)
+  displayOrder     Int      @default(0) // For UI ordering
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([isEnabled])
+  @@map("oidc_providers")
+}
+
+// Session management (JWT + database-backed for revocation)
+model Session {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token          String   @unique // JWT token ID (jti claim) for revocation
+  expiresAt      DateTime
+
+  // Security metadata
+  ipAddress      String?
+  userAgent      String?
+
+  // Session lifecycle
+  createdAt      DateTime @default(now())
+  lastActivityAt DateTime @default(now())
+  revokedAt      DateTime?
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("sessions")
 }

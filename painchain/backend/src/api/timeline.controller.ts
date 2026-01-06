@@ -1,6 +1,8 @@
 import { Controller, Get, Query, Headers } from '@nestjs/common';
 import { TimelineService } from './timeline.service';
+import { Public } from '../auth/decorators/public.decorator';
 
+@Public() // Temporary: Allow unauthenticated access during migration
 @Controller('timeline')
 export class TimelineController {
   constructor(private readonly timelineService: TimelineService) {}

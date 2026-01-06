@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { IntegrationsService } from './integrations.service';
 import { Prisma } from '@prisma/client';
+import { Public } from '../auth/decorators/public.decorator';
 
 /**
  * Validates integration config against the standard contract
@@ -35,6 +36,7 @@ function validateConfig(config: any): void {
   }
 }
 
+@Public() // Temporary: Allow unauthenticated access during migration
 @Controller('integrations')
 export class IntegrationsController {
   constructor(private readonly integrationsService: IntegrationsService) {}

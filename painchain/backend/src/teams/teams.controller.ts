@@ -12,7 +12,9 @@ import {
 } from '@nestjs/common';
 import { TeamsService } from './teams.service';
 import { Prisma } from '@prisma/client';
+import { Public } from '../auth/decorators/public.decorator';
 
+@Public() // Temporary: Allow unauthenticated access during migration
 @Controller('teams')
 export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
