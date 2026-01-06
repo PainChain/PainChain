@@ -100,6 +100,50 @@
   max-width: 1400px;
   margin: 0 auto;
   padding: 40px 48px 48px;
+  position: relative;
+}
+
+/* Toast Notification */
+.toast-notification {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(0, 232, 160, 0.95) 0%, rgba(0, 200, 140, 0.95) 100%);
+  color: #0f1419;
+  padding: 12px 24px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 232, 160, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9em;
+  font-weight: 600;
+  animation: slideDown 0.3s ease-out, slideUp 0.3s ease-in 2.7s;
+  animation-fill-mode: forwards;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
 }
 
 /* Timeline Component */
@@ -386,6 +430,22 @@
   box-shadow: 0 8px 24px rgba(0, 232, 160, 0.1);
 }
 
+.change-card.highlighted {
+  border-color: #00E8A0;
+  background: linear-gradient(135deg, rgba(0, 232, 160, 0.08) 0%, rgba(0, 232, 160, 0.03) 100%);
+  box-shadow: 0 0 0 2px rgba(0, 232, 160, 0.2), 0 8px 24px rgba(0, 232, 160, 0.15);
+  animation: highlightPulse 2s ease-in-out;
+}
+
+@keyframes highlightPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(0, 232, 160, 0.2), 0 8px 24px rgba(0, 232, 160, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(0, 232, 160, 0.3), 0 12px 32px rgba(0, 232, 160, 0.25);
+  }
+}
+
 .change-header {
   display: flex;
   justify-content: space-between;
@@ -484,6 +544,28 @@
   border-radius: 10px;
   font-size: 0.7em;
   font-weight: 500;
+}
+
+.copy-link-btn {
+  background: none;
+  border: none;
+  color: #808080;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border-radius: 4px;
+}
+
+.copy-link-btn:hover {
+  color: #00E8A0;
+  background: rgba(0, 232, 160, 0.1);
+}
+
+.copy-link-btn svg {
+  transition: stroke 0.2s;
 }
 
 .expand-btn {

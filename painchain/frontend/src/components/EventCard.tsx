@@ -5,6 +5,8 @@ import { GenericRenderer } from './GenericRenderer';
 interface EventCardProps {
   event: Event;
   tags?: string[];
+  isHighlighted?: boolean;
+  onCopyLink?: () => void;
 }
 
 const CONNECTOR_LOGOS: Record<string, string> = {
@@ -14,7 +16,7 @@ const CONNECTOR_LOGOS: Record<string, string> = {
   painchain: '/logos/painchain.png', // PainChain logo stays in public folder
 };
 
-export function EventCard({ event, tags = [] }: EventCardProps) {
+export function EventCard({ event, tags = [], isHighlighted = false, onCopyLink }: EventCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const getConnectorColor = (connector: string) => {
@@ -39,8 +41,33 @@ export function EventCard({ event, tags = [] }: EventCardProps) {
     });
   };
 
+  const handleCopyLink = async () => {
+    // Create a shareable URL with event ID and time context
+    const eventTime = new Date(event.timestamp);
+    // Set time window to 1 hour before and after the event
+    const startTime = new Date(eventTime.getTime() - 60 * 60 * 1000);
+    const endTime = new Date(eventTime.getTime() + 60 * 60 * 1000);
+
+    const url = new URL(window.location.origin);
+    url.searchParams.set('eventId', event.id);
+    url.searchParams.set('startDate', startTime.toISOString());
+    url.searchParams.set('endDate', endTime.toISOString());
+
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      if (onCopyLink) {
+        onCopyLink();
+      }
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
+  };
+
   return (
-    <div className="change-card">
+    <div
+      className={`change-card ${isHighlighted ? 'highlighted' : ''}`}
+      id={`event-${event.id}`}
+    >
       {/* Header with badges and meta */}
       <div className="change-header">
         <div className="change-badges">
@@ -58,9 +85,29 @@ export function EventCard({ event, tags = [] }: EventCardProps) {
             </span>
           </div>
         </div>
-        <div className="change-meta">
-          <div>By {event.data.author || event.data.user || 'system'}</div>
-          <div>{formatDate(event.timestamp)}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="change-meta">
+            <div>By {event.data.author || event.data.user || 'system'}</div>
+            <div>{formatDate(event.timestamp)}</div>
+          </div>
+          <button
+            className="copy-link-btn"
+            onClick={handleCopyLink}
+            aria-label="Copy link to this event"
+            title="Copy link to this event"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
         </div>
       </div>
 

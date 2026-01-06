@@ -10,15 +10,33 @@ import { DateTimePicker } from '../components/DateTimePicker';
 import type { Event } from '../types/api';
 
 export function Home() {
+  // Check for eventId in URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const eventIdFromUrl = urlParams.get('eventId');
+  const startDateFromUrl = urlParams.get('startDate');
+  const endDateFromUrl = urlParams.get('endDate');
+
   const [sourceFilter, setSourceFilter] = useState<string[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
-  // Default to last 24 hours (using browser local time)
+  const [showCopyToast, setShowCopyToast] = useState(false);
+  const highlightedEventId = eventIdFromUrl;
+
+  const handleCopyLink = () => {
+    setShowCopyToast(true);
+    setTimeout(() => setShowCopyToast(false), 3000);
+  };
+
+  // Default to last 24 hours, or use URL parameters if provided
   const [startDate, setStartDate] = useState(() => {
+    if (startDateFromUrl) return startDateFromUrl;
     const date = new Date();
     date.setDate(date.getDate() - 1);
     return date.toISOString();
   });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString());
+  const [endDate, setEndDate] = useState(() => {
+    if (endDateFromUrl) return endDateFromUrl;
+    return new Date().toISOString();
+  });
 
   const { integrations } = useIntegrations();
   const { teams } = useTeams();
@@ -102,6 +120,19 @@ export function Home() {
     return () => clearInterval(interval);
   }, []); // Empty deps - refetch is stable from useEvents
 
+  // Scroll to highlighted event when events are loaded
+  useEffect(() => {
+    if (highlightedEventId && events.length > 0) {
+      // Small delay to ensure DOM is rendered
+      setTimeout(() => {
+        const element = document.getElementById(`event-${highlightedEventId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 500);
+    }
+  }, [highlightedEventId, events]);
+
   const getTimeGroup = (timestamp: string) => {
     const now = new Date();
     const date = new Date(timestamp);
@@ -180,6 +211,24 @@ export function Home() {
 
   return (
     <div className="content">
+      {/* Copy Toast Notification */}
+      {showCopyToast && (
+        <div className="toast-notification">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            style={{ flexShrink: 0 }}
+          >
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Event link copied to clipboard</span>
+        </div>
+      )}
+
       {/* Timeline Chart */}
       <Timeline
         events={filteredEvents}
@@ -243,6 +292,8 @@ export function Home() {
                 key={event.id}
                 event={event}
                 tags={getTagsForEvent(event)}
+                isHighlighted={event.id === highlightedEventId}
+                onCopyLink={handleCopyLink}
               />
             ))}
           </div>
