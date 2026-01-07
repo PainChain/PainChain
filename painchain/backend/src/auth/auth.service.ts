@@ -1,13 +1,14 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { PasswordService } from './services/password.service';
 import { JwtTokenService } from './services/jwt.service';
 import { SessionService } from './services/session.service';
 import { OIDCConfigService } from './services/oidc-config.service';
 import { OIDCService } from './services/oidc.service';
+import { InvitationService } from './services/invitation.service';
 import { RegisterDto } from './dto/register.dto';
 import { AuthResponseDto, AuthMethodsDto } from './dto/auth-response.dto';
-import { User, OIDCProvider } from '@prisma/client';
+import { User, OIDCProvider, Tenant } from '@prisma/client';
 
 interface SessionMetadata {
   ipAddress?: string;
@@ -36,6 +37,7 @@ export class AuthService {
     private readonly sessionService: SessionService,
     private readonly oidcConfigService: OIDCConfigService,
     private readonly oidcService: OIDCService,
+    private readonly invitationService: InvitationService,
   ) {}
 
   /**
@@ -78,9 +80,9 @@ export class AuthService {
    * @returns Auth response with JWT
    */
   async register(dto: RegisterDto): Promise<AuthResponseDto> {
-    // Check if registration is allowed
-    if (!this.oidcConfigService.isRegistrationAllowed()) {
-      throw new BadRequestException('Registration is disabled');
+    // Check if registration is allowed (unless using invitation)
+    if (!this.oidcConfigService.isRegistrationAllowed() && !dto.invitationToken) {
+      throw new BadRequestException('Registration is disabled. You need an invitation to join.');
     }
 
     // Check if user already exists
@@ -98,26 +100,56 @@ export class AuthService {
       throw new BadRequestException(`Password must be at least ${minLength} characters long`);
     }
 
-    // Hash password
     const passwordHash = await this.passwordService.hashPassword(dto.password);
 
-    // Find or create tenant
-    let tenant;
-    if (dto.tenantId) {
+    let tenant: Tenant;
+    let role = 'member';
+    let invitedBy: string | null = null;
+
+    // CASE 1: User has invitation token → Join existing tenant
+    if (dto.invitationToken) {
+      const invitation = await this.invitationService.validateInvitation(dto.invitationToken);
+
       tenant = await this.prisma.tenant.findUnique({
-        where: { id: dto.tenantId },
+        where: { id: invitation.tenantId },
       });
+
       if (!tenant) {
-        throw new BadRequestException('Tenant not found');
+        throw new NotFoundException('Tenant not found');
       }
-    } else {
-      // Create new tenant for this user
+
+      role = invitation.role;
+      invitedBy = invitation.createdBy;
+    }
+    // CASE 2: User provides organization name → Create new tenant
+    else if (dto.organizationName) {
+      const slug = this.generateSlug(dto.organizationName);
+
+      // Check if slug already exists
+      const existingTenant = await this.prisma.tenant.findUnique({
+        where: { slug },
+      });
+
+      if (existingTenant) {
+        throw new ConflictException('An organization with this name already exists');
+      }
+
+      // Extract domain from email for OIDC auto-join
+      const domain = dto.email.includes('@') ? dto.email.split('@')[1] : null;
+
       tenant = await this.prisma.tenant.create({
         data: {
-          slug: dto.email.split('@')[0] + '-' + Date.now(),
-          name: dto.displayName || dto.email.split('@')[0] + "'s Tenant",
+          name: dto.organizationName,
+          slug,
+          domains: domain ? [domain] : [],
         },
       });
+
+      role = 'owner'; // First user is owner
+    }
+    // CASE 3: No invitation and no org name
+    else {
+      throw new BadRequestException('Must provide either organizationName or invitationToken');
     }
 
     // Create user
@@ -129,16 +161,34 @@ export class AuthService {
         lastName: dto.lastName,
         displayName: dto.displayName || dto.firstName || dto.email.split('@')[0],
         tenantId: tenant.id,
-        role: dto.tenantId ? 'member' : 'owner', // First user in new tenant is owner
-        emailVerified: false, // TODO: Implement email verification
+        role,
+        emailVerified: false,
+        invitedBy,
+        invitedAt: invitedBy ? new Date() : null,
       },
       include: { tenant: true },
     });
 
-    this.logger.log(`User registered: ${user.email} (tenant: ${tenant.slug})`);
+    // Mark invitation as used
+    if (dto.invitationToken) {
+      await this.invitationService.useInvitation(dto.invitationToken, user.id);
+    }
+
+    this.logger.log(`User registered: ${user.email} (tenant: ${tenant.slug}, role: ${role})`);
 
     // Generate JWT and create session
     return this.login(user);
+  }
+
+  /**
+   * Generate URL-safe slug from organization name
+   */
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      + '-' + Date.now();
   }
 
   /**
@@ -183,116 +233,84 @@ export class AuthService {
   }
 
   /**
-   * Handle OIDC login (find or create user)
+   * Handle OIDC login (find or create user with domain-based auto-join)
    * @param userInfo - User information from OIDC provider
    * @param provider - OIDC provider configuration
    * @returns Auth response with JWT
    */
   async handleOIDCLogin(userInfo: OIDCUserInfo, provider: OIDCProvider): Promise<AuthResponseDto> {
-    // Extract tenant from claims
-    const tenantSlug = this.oidcService.extractTenantFromClaims(userInfo, provider.tenantClaimPath);
+    const email = userInfo.email;
 
-    if (!tenantSlug) {
-      throw new BadRequestException(
-        `Unable to extract tenant from OIDC claims. Expected claim: ${provider.tenantClaimPath}`
-      );
+    if (!email) {
+      throw new BadRequestException('Email is required from OIDC provider');
     }
 
-    // Find or create tenant
-    let tenant = await this.prisma.tenant.findUnique({
-      where: { slug: tenantSlug },
+    const domain = email.split('@')[1];
+
+    // Check if user already exists
+    let user = await this.prisma.user.findUnique({
+      where: { email },
+      include: { tenant: true },
     });
 
-    if (!tenant) {
-      tenant = await this.prisma.tenant.create({
-        data: {
-          slug: tenantSlug,
-          name: tenantSlug,
-        },
-      });
-      this.logger.log(`Created new tenant: ${tenantSlug}`);
-    }
-
-    // Find existing OIDC account
-    let oidcAccount = await this.prisma.oIDCAccount.findUnique({
-      where: {
-        providerId_providerUserId: {
-          providerId: provider.id,
-          providerUserId: userInfo.sub,
-        },
-      },
-      include: { user: true },
-    });
-
-    let user: User;
-
-    if (oidcAccount) {
-      // User exists, update OIDC account
-      user = oidcAccount.user;
-
-      await this.prisma.oIDCAccount.update({
-        where: { id: oidcAccount.id },
-        data: {
-          claims: userInfo,
-          lastUsedAt: new Date(),
-        },
-      });
-
-      // Update user last login
+    // User exists → update last login
+    if (user) {
       await this.prisma.user.update({
         where: { id: user.id },
         data: { lastLoginAt: new Date() },
       });
-    } else {
-      // Check if user exists by email
-      user = await this.prisma.user.findUnique({
-        where: { email: userInfo.email },
+
+      return this.login(user);
+    }
+
+    // User doesn't exist → Find or create tenant based on domain
+    let tenant = await this.prisma.tenant.findFirst({
+      where: {
+        domains: {
+          has: domain,
+        },
+      },
+    });
+
+    // No tenant found for this domain → Create new tenant
+    if (!tenant) {
+      this.logger.log(`Creating new tenant for domain: ${domain}`);
+
+      tenant = await this.prisma.tenant.create({
+        data: {
+          name: domain.split('.')[0], // "acme" from "acme.com"
+          slug: domain.replace(/\./g, '-') + '-' + Date.now(),
+          domains: [domain],
+        },
       });
+    } else {
+      this.logger.log(`Auto-joining existing tenant: ${tenant.name} (domain: ${domain})`);
+    }
 
-      if (user) {
-        // User exists with this email, link OIDC account
-        // But verify tenant matches
-        if (user.tenantId !== tenant.id) {
-          throw new BadRequestException(
-            'User already exists in a different tenant. Cannot link OIDC account.'
-          );
-        }
-
-        await this.prisma.oIDCAccount.create({
-          data: {
-            userId: user.id,
+    // Create user and auto-join tenant
+    user = await this.prisma.user.create({
+      data: {
+        email,
+        emailVerified: userInfo.email_verified || false,
+        firstName: userInfo.given_name,
+        lastName: userInfo.family_name,
+        displayName: userInfo.name || userInfo.email.split('@')[0],
+        avatarUrl: userInfo.picture,
+        tenantId: tenant.id,
+        role: 'member', // Auto-joined users are members
+        oidcAccounts: {
+          create: {
             providerId: provider.id,
             providerUserId: userInfo.sub,
             claims: userInfo,
           },
-        });
-      } else {
-        // Create new user
-        user = await this.prisma.user.create({
-          data: {
-            email: userInfo.email,
-            emailVerified: userInfo.email_verified || false,
-            firstName: userInfo.given_name,
-            lastName: userInfo.family_name,
-            displayName: userInfo.name || userInfo.email.split('@')[0],
-            avatarUrl: userInfo.picture,
-            tenantId: tenant.id,
-            role: 'member', // Default role for OIDC users
-            oidcAccounts: {
-              create: {
-                providerId: provider.id,
-                providerUserId: userInfo.sub,
-                claims: userInfo,
-              },
-            },
-          },
-        });
+        },
+      },
+      include: { tenant: true },
+    });
 
-        this.logger.log(`Created new user via OIDC: ${user.email} (provider: ${provider.name})`);
-      }
-    }
+    this.logger.log(`OIDC user created and joined tenant: ${user.email} → ${tenant.name}`);
 
-    // Generate JWT and create session
     return this.login(user);
   }
 

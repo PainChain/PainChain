@@ -18,6 +18,7 @@ import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { OIDCConfigService } from './services/oidc-config.service';
 import { OIDCService } from './services/oidc.service';
+import { InvitationService } from './services/invitation.service';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { LocalAuthGuard } from './guards/local-auth.guard';
@@ -34,6 +35,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly oidcConfigService: OIDCConfigService,
     private readonly oidcService: OIDCService,
+    private readonly invitationService: InvitationService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -205,5 +207,80 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async revokeSession(@Param('sessionId') sessionId: string, @CurrentUser() user: AuthUser) {
     await this.authService.revokeUserSession(user.userId, sessionId);
+  }
+
+  // ==================== INVITATION ROUTES ====================
+
+  /**
+   * Create a new invitation link (owners/admins only)
+   * POST /api/auth/invitations
+   * Headers: Authorization: Bearer <token>
+   * Body: { role?: string, expiresInDays?: number, maxUses?: number }
+   */
+  @Post('invitations')
+  @HttpCode(HttpStatus.CREATED)
+  async createInvitation(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: { role?: string; expiresInDays?: number; maxUses?: number },
+  ) {
+    const invitation = await this.invitationService.createInvitation(
+      user.tenantId,
+      user.userId,
+      dto.role || 'member',
+      dto.expiresInDays || 7,
+      dto.maxUses || 1,
+    );
+
+    // Return invitation with full URL
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:8000');
+    const inviteUrl = `${frontendUrl}/register?invite=${invitation.token}`;
+
+    return {
+      ...invitation,
+      inviteUrl,
+    };
+  }
+
+  /**
+   * Get invitation details (public, for registration page)
+   * GET /api/auth/invitations/:token
+   */
+  @Public()
+  @Get('invitations/:token')
+  async getInvitation(@Param('token') token: string) {
+    const invitation = await this.invitationService.getInvitation(token);
+
+    // Return only safe fields
+    return {
+      token: invitation.token,
+      tenant: invitation.tenant,
+      role: invitation.role,
+      expiresAt: invitation.expiresAt,
+      isValid:
+        !invitation.isRevoked &&
+        invitation.expiresAt > new Date() &&
+        invitation.useCount < invitation.maxUses,
+    };
+  }
+
+  /**
+   * List all invitations for current tenant (owners/admins only)
+   * GET /api/auth/invitations
+   * Headers: Authorization: Bearer <token>
+   */
+  @Get('invitations')
+  async listInvitations(@CurrentUser() user: AuthUser) {
+    return this.invitationService.listInvitations(user.tenantId);
+  }
+
+  /**
+   * Revoke an invitation (owners/admins only)
+   * DELETE /api/auth/invitations/:token
+   * Headers: Authorization: Bearer <token>
+   */
+  @Delete('invitations/:token')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revokeInvitation(@Param('token') token: string, @CurrentUser() user: AuthUser) {
+    await this.invitationService.revokeInvitation(token, user.userId);
   }
 }

@@ -13,6 +13,7 @@ import { JwtTokenService } from './services/jwt.service';
 import { SessionService } from './services/session.service';
 import { OIDCConfigService } from './services/oidc-config.service';
 import { OIDCService } from './services/oidc.service';
+import { InvitationService } from './services/invitation.service';
 
 // Strategies
 import { LocalStrategy } from './strategies/local.strategy';
@@ -58,6 +59,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     SessionService,
     OIDCConfigService,
     OIDCService,
+    InvitationService,
 
     // Passport strategies
     LocalStrategy,

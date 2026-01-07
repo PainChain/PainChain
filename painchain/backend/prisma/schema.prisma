@@ -16,11 +16,17 @@ model Tenant {
   name          String
   createdAt     DateTime @default(now())
 
+  // Domain-based auto-joining for OIDC
+  // Example: ["acme.com", "acme.co.uk"]
+  // Users with @acme.com will auto-join this tenant
+  domains       String[] @default([])
+
   integrations  Integration[]
   events        Event[]
   projects      Project[]
   teams         Team[]
   users         User[]        // Users belonging to this tenant
+  invitations   TenantInvitation[]
 
   @@map("tenants")
 }
@@ -148,6 +154,10 @@ model User {
   // RBAC (role-based access control)
   role          String   @default("member") // "owner", "admin", "member", "viewer"
 
+  // Invitation tracking
+  invitedBy     String?    // User ID who invited this user
+  invitedAt     DateTime?  // When the user was invited
+
   // Relations
   sessions      Session[]
   oidcAccounts  OIDCAccount[]
@@ -228,4 +238,38 @@ model Session {
   @@index([token])
   @@index([expiresAt])
   @@map("sessions")
+}
+
+// Tenant invitations (shareable links, no email sending)
+model TenantInvitation {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Invitation details
+  token     String   @unique @default(cuid()) // Shareable token for invite URL
+  role      String   @default("member")       // Role for invited user: "owner", "admin", "member", "viewer"
+
+  // Who created this invite
+  createdBy String   // User ID of creator
+  createdAt DateTime @default(now())
+
+  // Expiration (7 days default)
+  expiresAt DateTime
+
+  // Usage tracking
+  usedBy    String?   // User ID who accepted this invitation
+  usedAt    DateTime? // When the invitation was accepted
+  maxUses   Int       @default(1) // How many people can use this link (1 = single-use, >1 = multi-use)
+  useCount  Int       @default(0)
+
+  // Revocation
+  isRevoked Boolean   @default(false)
+  revokedAt DateTime?
+  revokedBy String?   // User ID who revoked
+
+  @@index([token])
+  @@index([tenantId])
+  @@index([createdBy])
+  @@map("tenant_invitations")
 }
